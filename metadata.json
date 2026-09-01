@@ -1,0 +1,6 @@
+{
+  "name": "Powerhouse Video Player",
+  "description": "A highly advanced client-side HTML5 video player with sub-title rendering, playlist catalog, volume booster up to 200%, playback speeds, A-B looping, bookmarked scenes, and playback stats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
