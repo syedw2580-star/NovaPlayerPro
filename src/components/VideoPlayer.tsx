@@ -299,10 +299,37 @@ export default function VideoPlayer({
     });
   };
 
+  // Switch HTML5 audio tracks when activeAudioTrackId changes
+  useEffect(() => {
+    if (!userVideoRef?.current || !activeAudioTrackId) return;
+    const videoEl = userVideoRef.current as any;
+    if (videoEl.audioTracks && videoEl.audioTracks.length > 0) {
+      const selectedTrk = audioTracks.find(t => t.id === activeAudioTrackId);
+      const targetIdx = selectedTrk ? selectedTrk.index : 0;
+      for (let i = 0; i < videoEl.audioTracks.length; i++) {
+        videoEl.audioTracks[i].enabled = (i === targetIdx);
+      }
+    }
+  }, [activeAudioTrackId, audioTracks, userVideoRef]);
+
+  // Handle scene bookmark saving
+  const handleAddBookmarkInternal = () => {
+    if (onAddBookmark && activeVideo) {
+      onAddBookmark(activeVideo.id, currentTime, bookmarkNote || 'Scene Bookmark');
+    }
+    setBookmarkNote('');
+    setShowBookmarkInput(false);
+    setRecoveryToast({
+      visible: true,
+      message: `🔖 Scene Bookmarked at ${formatSeconds(currentTime)}`,
+      timestamp: Date.now()
+    });
+  };
+
   // Auto-detect 3D SBS / TAB format from media filename or title
   useEffect(() => {
     if (activeVideo) {
-      const name = (activeVideo.title || activeVideo.name || '').toLowerCase();
+      const name = (activeVideo.title || (activeVideo as any).name || '').toLowerCase();
       const is3D = name.includes('3d') || name.includes('sbs') || name.includes('hsbs') || name.includes('h-sbs') || name.includes('half-sbs');
       const isTAB = name.includes('tab') || name.includes('h-tab') || name.includes('ou') || name.includes('h-ou') || name.includes('over-under');
 
@@ -1487,7 +1514,18 @@ export default function VideoPlayer({
                   <select
                     id="audio-track-selector"
                     value={activeAudioTrackId}
-                    onChange={(e) => onSelectAudioTrack && onSelectAudioTrack(e.target.value)}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      if (onSelectAudioTrack) onSelectAudioTrack(newId);
+                      const trk = audioTracks.find(t => t.id === newId);
+                      if (trk) {
+                        setRecoveryToast({
+                          visible: true,
+                          message: `🎧 Audio Track: ${trk.label}`,
+                          timestamp: Date.now()
+                        });
+                      }
+                    }}
                     className="bg-transparent text-white text-[10px] font-semibold focus:outline-none cursor-pointer font-mono max-w-[70px] sm:max-w-[85px] truncate"
                   >
                     {audioTracks.map((trk) => (
@@ -1508,7 +1546,16 @@ export default function VideoPlayer({
                   <select
                     id="subtitle-track-selector"
                     value={activeSubtitleTrackId || 'off'}
-                    onChange={(e) => onSelectSubtitleTrack && onSelectSubtitleTrack(e.target.value)}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      if (onSelectSubtitleTrack) onSelectSubtitleTrack(newId);
+                      const trk = subtitleTracks.find(t => t.id === newId);
+                      setRecoveryToast({
+                        visible: true,
+                        message: trk ? `💬 Subtitle Track: ${trk.label}` : '💬 Subtitles Disabled',
+                        timestamp: Date.now()
+                      });
+                    }}
                     className="bg-transparent text-white text-[10px] font-semibold focus:outline-none cursor-pointer font-mono max-w-[70px] sm:max-w-[85px] truncate"
                   >
                     <option value="off" className="bg-zinc-900 text-red-400">Disable Subs</option>

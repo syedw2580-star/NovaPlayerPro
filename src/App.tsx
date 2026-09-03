@@ -125,22 +125,23 @@ export default function App() {
         }
         setSubtitleTracks(allSubs);
 
-        // Default subtitle track to Track 1 (or external subtitle) like VLC
+        // Default subtitle track to English or external or Track 1 (VLC style)
         if (video.subtitleText) {
           setActiveSubtitleTrackId('sub-ext');
           setCues(parseSubtitles(video.subtitleText));
           return;
         } else if (allSubs.length > 0) {
-          const firstSub = allSubs[0];
-          setActiveSubtitleTrackId(firstSub.id);
-          if (firstSub.number !== undefined) {
-            const result = await extractEmbeddedSubtitleTrack(fileObj, firstSub.number, firstSub.id);
+          const enSub = allSubs.find(t => t.language?.toLowerCase().startsWith('en') || t.label?.toLowerCase().includes('english'));
+          const chosenSub = enSub || allSubs[0];
+          setActiveSubtitleTrackId(chosenSub.id);
+          if (chosenSub.number !== undefined) {
+            const result = await extractEmbeddedSubtitleTrack(fileObj, chosenSub.number, chosenSub.id);
             if (result && result.cues.length > 0) {
-              firstSub.cues = result.cues;
-              firstSub.srtText = result.srtText;
+              chosenSub.cues = result.cues;
+              chosenSub.srtText = result.srtText;
               setCues(result.cues);
               video.subtitleText = result.srtText;
-              video.subtitleName = firstSub.label;
+              video.subtitleName = chosenSub.label;
             } else {
               setCues([]);
             }
@@ -165,6 +166,18 @@ export default function App() {
       ...t,
       enabled: t.id === trackId
     })));
+
+    // Apply native HTML5 audio track selection if supported
+    if (userVideoRef.current) {
+      const videoEl = userVideoRef.current as any;
+      if (videoEl.audioTracks && videoEl.audioTracks.length > 0) {
+        const selectedTrk = audioTracks.find(t => t.id === trackId);
+        const targetIdx = selectedTrk ? selectedTrk.index : 0;
+        for (let i = 0; i < videoEl.audioTracks.length; i++) {
+          videoEl.audioTracks[i].enabled = (i === targetIdx);
+        }
+      }
+    }
   };
 
   const handleSelectSubtitleTrack = async (trackId: string) => {
@@ -181,6 +194,7 @@ export default function App() {
       return;
     }
 
+    // 1. Instant Cache Hit: If already extracted once, switch in 0ms!
     if (selectedTrack.cues && selectedTrack.cues.length > 0) {
       setCues(selectedTrack.cues);
       return;
@@ -193,6 +207,7 @@ export default function App() {
       return;
     }
 
+    // 2. High-speed extraction for MKV or MP4 embedded track
     if (activeVideo?.file && selectedTrack.number !== undefined) {
       try {
         const extracted = await extractEmbeddedSubtitleTrack(activeVideo.file as File, selectedTrack.number, selectedTrack.id);
@@ -200,9 +215,12 @@ export default function App() {
           selectedTrack.cues = extracted.cues;
           selectedTrack.srtText = extracted.srtText;
           setCues(extracted.cues);
+        } else {
+          setCues([]);
         }
       } catch (e) {
         console.error('Error extracting selected subtitle track:', e);
+        setCues([]);
       }
     }
   };
@@ -557,7 +575,7 @@ export default function App() {
     if (files.length === 0) return;
 
     // Check if ONLY subtitle files were dropped on an active video
-    const allSubtitles = Array.from(files).every(f => {
+    const allSubtitles = Array.from(files).every((f: File) => {
       const name = f.name.toLowerCase();
       return name.endsWith('.srt') || name.endsWith('.vtt');
     });

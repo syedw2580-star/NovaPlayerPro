@@ -26,6 +26,13 @@ const LANGUAGE_NAMES: Record<string, string> = {
   rus: 'Russian', ru: 'Russian',
   ara: 'Arabic', ar: 'Arabic',
   por: 'Portuguese', pt: 'Portuguese',
+  dan: 'Danish', da: 'Danish',
+  dut: 'Dutch', nl: 'Dutch',
+  nor: 'Norwegian', no: 'Norwegian',
+  fin: 'Finnish', fi: 'Finnish',
+  swe: 'Swedish', sv: 'Swedish',
+  pol: 'Polish', pl: 'Polish',
+  tur: 'Turkish', tr: 'Turkish',
   und: 'Undetermined'
 };
 
@@ -36,8 +43,34 @@ function formatLanguage(code: string): string {
 }
 
 /**
- * Reads Variable Size Integer (VINT) used in EBML (Matroska / MKV).
+ * Clean ASS/SSA formatting and control codes from raw subtitle strings
  */
+function cleanSubtitleText(raw: string): string {
+  if (!raw) return '';
+  let text = raw.trim();
+  // Strip SSA/ASS Dialogue header if present
+  if (text.startsWith('Dialogue:')) {
+    let commaCount = 0;
+    let idx = 0;
+    while (idx < text.length && commaCount < 9) {
+      if (text[idx] === ',') commaCount++;
+      idx++;
+    }
+    if (commaCount >= 9) {
+      text = text.substring(idx);
+    }
+  }
+  // Remove ASS style override tags like {\an8}, {\pos(...)}, {\i1}
+  text = text.replace(/\{[^}]+\}/g, '');
+  // Convert ASS line break escapes to standard newlines
+  text = text.replace(/\\N/g, '\n').replace(/\\n/g, '\n');
+  return text.trim();
+}
+
+/* ========================================================================= */
+/*                   EBML / MATROSKA (MKV / WEBM) PARSER                     */
+/* ========================================================================= */
+
 function readVint(buffer: Uint8Array, offset: number): { value: number; length: number } | null {
   if (offset >= buffer.length) return null;
   const firstByte = buffer[offset];
@@ -58,12 +91,11 @@ function readVint(buffer: Uint8Array, offset: number): { value: number; length: 
   return { value, length };
 }
 
-/**
- * Reads EBML Element ID.
- */
 function readElementId(buffer: Uint8Array, offset: number): { id: number; length: number } | null {
   if (offset >= buffer.length) return null;
   const firstByte = buffer[offset];
+  if (firstByte === 0) return null;
+
   let length = 1;
   let mask = 0x80;
   while ((firstByte & mask) === 0 && length <= 4) {
@@ -90,9 +122,6 @@ interface RawEBMLTrack {
   isDefault?: boolean;
 }
 
-/**
- * Parses EBML Header and Track Entries from MKV/WebM file.
- */
 async function parseMKVTracks(file: File): Promise<RawEBMLTrack[]> {
   try {
     const headerChunkSize = Math.min(file.size, 16 * 1024 * 1024);
@@ -234,6 +263,204 @@ async function parseMKVTracks(file: File): Promise<RawEBMLTrack[]> {
   } catch (e) {
     console.error('Error parsing MKV EBML tracks:', e);
     return [];
+  }
+}
+
+/**
+ * Ultra-Fast Streaming Matroska (MKV/WebM) Subtitle Track Extractor.
+ * Parses Clusters and extracts BlockGroup / SimpleBlock packets with millisecond precision.
+ */
+export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: number): Promise<ExtractedSubtitleResult | null> {
+  try {
+    const fileSize = file.size;
+    const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB sliding buffer
+    const buffer = new Uint8Array(CHUNK_SIZE);
+
+    let clusterTime = 0;
+    const cuesList: { start: number; end: number; text: string }[] = [];
+    const decoder = new TextDecoder('utf-8');
+
+    let bytesInBuffer = 0;
+    let bufferStartFilePos = 0;
+    let offset = 0;
+
+    const ensureBytes = async (needed: number): Promise<boolean> => {
+      if (offset + needed <= bytesInBuffer) return true;
+      const remaining = Math.max(0, bytesInBuffer - offset);
+      if (remaining > 0) {
+        buffer.copyWithin(0, offset, bytesInBuffer);
+      }
+      bufferStartFilePos += offset;
+      offset = 0;
+
+      const bytesToRead = Math.min(CHUNK_SIZE - remaining, fileSize - (bufferStartFilePos + remaining));
+      if (bytesToRead <= 0) {
+        bytesInBuffer = remaining;
+        return bytesInBuffer >= needed;
+      }
+
+      const sliceBuf = await file.slice(bufferStartFilePos + remaining, bufferStartFilePos + remaining + bytesToRead).arrayBuffer();
+      buffer.set(new Uint8Array(sliceBuf), remaining);
+      bytesInBuffer = remaining + sliceBuf.byteLength;
+      return bytesInBuffer >= needed;
+    };
+
+    // Initial read
+    const initSize = Math.min(CHUNK_SIZE, fileSize);
+    const initBuf = await file.slice(0, initSize).arrayBuffer();
+    buffer.set(new Uint8Array(initBuf), 0);
+    bytesInBuffer = initBuf.byteLength;
+
+    while (bufferStartFilePos + offset < fileSize) {
+      if (!(await ensureBytes(16))) break;
+
+      const el = readElementId(buffer, offset);
+      if (!el) { offset++; continue; }
+
+      const sz = readVint(buffer, offset + el.length);
+      if (!sz) { offset++; continue; }
+
+      const dataOffset = offset + el.length + sz.length;
+
+      // Container elements to enter: Segment (0x18538067) and Cluster (0x1F43B675)
+      if (el.id === 0x18538067 || el.id === 0x1F43B675) {
+        offset = dataOffset;
+        continue;
+      }
+
+      // 0xE7 = Cluster Timecode
+      if (el.id === 0xE7) {
+        if (!(await ensureBytes(sz.value + (dataOffset - offset)))) break;
+        let tc = 0;
+        for (let i = 0; i < Math.min(sz.value, 8); i++) {
+          tc = (tc << 8) | buffer[dataOffset + i];
+        }
+        clusterTime = tc;
+        offset = dataOffset + sz.value;
+        continue;
+      }
+
+      // 0xA0 = BlockGroup (Subtitles with explicit duration)
+      if (el.id === 0xA0) {
+        if (!(await ensureBytes(sz.value + (dataOffset - offset)))) {
+          offset = dataOffset + sz.value;
+          continue;
+        }
+        const bgEnd = dataOffset + sz.value;
+        let bgPos = dataOffset;
+        let blockTime: number | null = null;
+        let blockText: string | null = null;
+        let duration = 2500;
+
+        while (bgPos < bgEnd - 4) {
+          const subEl = readElementId(buffer, bgPos);
+          if (!subEl) break;
+          const subSz = readVint(buffer, bgPos + subEl.length);
+          if (!subSz) break;
+          const subData = bgPos + subEl.length + subSz.length;
+
+          if (subEl.id === 0xA1 && subData < bytesInBuffer) {
+            const tNum = readVint(buffer, subData);
+            if (tNum && tNum.value === targetTrackNumber) {
+              const p = subData + tNum.length;
+              if (p + 3 <= bytesInBuffer) {
+                const dv = new DataView(buffer.buffer, buffer.byteOffset + p, 2);
+                const relTc = dv.getInt16(0, false);
+                const textBytes = buffer.subarray(p + 3, subData + subSz.value);
+                const rawText = decoder.decode(textBytes).trim();
+                blockText = cleanSubtitleText(rawText);
+                blockTime = clusterTime + relTc;
+              }
+            }
+          } else if (subEl.id === 0x9B) {
+            let dur = 0;
+            for (let i = 0; i < Math.min(subSz.value, 4); i++) {
+              dur = (dur << 8) | buffer[subData + i];
+            }
+            duration = dur;
+          }
+          bgPos = subData + subSz.value;
+        }
+
+        if (blockTime !== null && blockText) {
+          cuesList.push({
+            start: Math.max(0, blockTime / 1000),
+            end: Math.max(0, (blockTime + duration) / 1000),
+            text: blockText
+          });
+        }
+
+        offset = dataOffset + sz.value;
+        continue;
+      }
+
+      // 0xA3 = SimpleBlock (Standard subtitles)
+      if (el.id === 0xA3) {
+        if (await ensureBytes(Math.min(sz.value, 16) + (dataOffset - offset))) {
+          const tNum = readVint(buffer, dataOffset);
+          if (tNum && tNum.value === targetTrackNumber) {
+            if (await ensureBytes(sz.value + (dataOffset - offset))) {
+              const p = dataOffset + tNum.length;
+              const dv = new DataView(buffer.buffer, buffer.byteOffset + p, 2);
+              const relTc = dv.getInt16(0, false);
+              const textBytes = buffer.subarray(p + 3, dataOffset + sz.value);
+              const rawText = decoder.decode(textBytes).trim();
+              const text = cleanSubtitleText(rawText);
+              if (text) {
+                const start = Math.max(0, (clusterTime + relTc) / 1000);
+                cuesList.push({
+                  start,
+                  end: start + 2.8,
+                  text
+                });
+              }
+            }
+          }
+        }
+        offset = dataOffset + sz.value;
+        continue;
+      }
+
+      // Skip non-subtitle blocks (video/audio payload)
+      offset = dataOffset + sz.value;
+    }
+
+    if (cuesList.length === 0) return null;
+
+    // Sort by start time and fix overlapping end times
+    cuesList.sort((a, b) => a.start - b.start);
+    for (let i = 0; i < cuesList.length - 1; i++) {
+      const cur = cuesList[i];
+      const next = cuesList[i + 1];
+      if (next.start > cur.start && cur.end > next.start) {
+        cur.end = Math.max(cur.start + 0.5, next.start);
+      }
+    }
+
+    const srtLines: string[] = [];
+    cuesList.forEach((entry, idx) => {
+      const formatTime = (sec: number) => {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        const ms = Math.floor((sec % 1) * 1000);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+      };
+      srtLines.push(`${idx + 1}\n${formatTime(entry.start)} --> ${formatTime(entry.end)}\n${entry.text}\n`);
+    });
+
+    const srtText = srtLines.join('\n');
+    const cues = parseSubtitles(srtText);
+
+    return {
+      cues,
+      srtText,
+      language: 'und',
+      trackName: `Track ${targetTrackNumber}`
+    };
+  } catch (e) {
+    console.error('Error extracting MKV subtitle track:', e);
+    return null;
   }
 }
 
@@ -442,6 +669,10 @@ async function parseMP4Tracks(file: File): Promise<RawMP4Track[]> {
   }
 }
 
+/**
+ * Ultra-Fast Batched MP4 Subtitle Track Extractor.
+ * Reads sample headers from moov and streams non-empty subtitle text in fast parallel batches.
+ */
 export async function extractMP4SubtitleTrack(file: File, targetTrackId: number): Promise<ExtractedSubtitleResult | null> {
   try {
     const moovData = await getMP4MoovData(file);
@@ -462,11 +693,22 @@ export async function extractMP4SubtitleTrack(file: File, targetTrackId: number)
         const tId = version === 1 ? view.getUint32(tkhd.dataPos + 20, false) : view.getUint32(tkhd.dataPos + 12, false);
         return tId === targetTrackId;
       }
-      return idx === targetTrackId;
+      return (idx + 1) === targetTrackId;
     });
 
-    if (!targetTrak && trakBoxes.length > targetTrackId) {
-      targetTrak = trakBoxes[targetTrackId];
+    if (!targetTrak && trakBoxes.length > 0) {
+      targetTrak = trakBoxes.find(trak => {
+        const tb = parseMP4Boxes(view, trak.dataPos, trak.dataEnd);
+        const mdia = tb.find(b => b.type === 'mdia');
+        if (!mdia) return false;
+        const mb = parseMP4Boxes(view, mdia.dataPos, mdia.dataEnd);
+        const hdlr = mb.find(b => b.type === 'hdlr');
+        if (hdlr && hdlr.dataPos + 12 <= view.byteLength) {
+          const hType = String.fromCharCode(view.getUint8(hdlr.dataPos + 8), view.getUint8(hdlr.dataPos + 9), view.getUint8(hdlr.dataPos + 10), view.getUint8(hdlr.dataPos + 11));
+          return ['sbtl', 'text', 'subt', 'clcp'].includes(hType);
+        }
+        return false;
+      }) || trakBoxes[0];
     }
     if (!targetTrak) return null;
 
@@ -479,7 +721,7 @@ export async function extractMP4SubtitleTrack(file: File, targetTrackId: number)
     if (!mdhd) return null;
 
     const version = view.getUint8(mdhd.dataPos);
-    const timescale = version === 1 ? view.getUint32(mdhd.dataPos + 20, false) : view.getUint32(mdhd.dataPos + 12, false);
+    const timescale = (version === 1 ? view.getUint32(mdhd.dataPos + 20, false) : view.getUint32(mdhd.dataPos + 12, false)) || 1000;
 
     const minf = mdiaBoxes.find(b => b.type === 'minf');
     if (!minf) return null;
@@ -497,13 +739,14 @@ export async function extractMP4SubtitleTrack(file: File, targetTrackId: number)
 
     if (!stts || !stsz || !stsc || (!stco && !co64)) return null;
 
-    const sttsEntries = view.getUint32(stts.dataPos + 4, false);
-    const timeDeltas: number[] = [];
+    const sttsEntriesCount = view.getUint32(stts.dataPos + 4, false);
+    const sttsList: { count: number; delta: number }[] = [];
     let p = stts.dataPos + 8;
-    for (let i = 0; i < sttsEntries; i++) {
-      const count = view.getUint32(p, false);
-      const delta = view.getUint32(p + 4, false);
-      for (let j = 0; j < count; j++) timeDeltas.push(delta);
+    for (let i = 0; i < sttsEntriesCount; i++) {
+      sttsList.push({
+        count: view.getUint32(p, false),
+        delta: view.getUint32(p + 4, false)
+      });
       p += 8;
     }
 
@@ -575,31 +818,56 @@ export async function extractMP4SubtitleTrack(file: File, targetTrackId: number)
       }
     }
 
-    const extractedEntries: { startTime: number; endTime: number; text: string }[] = [];
-    let currentTimeSec = 0;
-    const decoder = new TextDecoder('utf-8');
+    // Collect valid non-empty samples with calculated timestamps
+    const validSamples: { startSec: number; endSec: number; offset: number; size: number }[] = [];
+    let currentSec = 0;
+    let sttsIdx = 0;
+    let sampleInStts = 0;
 
     for (let s = 0; s < sampleCount; s++) {
-      const durationSec = (timeDeltas[s] || 0) / (timescale || 1000);
-      const startSec = currentTimeSec;
-      const endSec = currentTimeSec + durationSec;
-      currentTimeSec += durationSec;
+      const delta = sttsList[sttsIdx] ? sttsList[sttsIdx].delta : 1000;
+      const durSec = delta / timescale;
+      const startSec = currentSec;
+      const endSec = currentSec + durSec;
+      currentSec += durSec;
+
+      sampleInStts++;
+      if (sttsList[sttsIdx] && sampleInStts >= sttsList[sttsIdx].count) {
+        sampleInStts = 0;
+        sttsIdx++;
+      }
 
       const size = sampleSizes[s];
       const offset = sampleOffsets[s];
-
       if (size > 2 && offset !== undefined) {
-        const sBuf = await file.slice(offset, offset + size).arrayBuffer();
+        validSamples.push({ startSec, endSec, offset, size });
+      }
+    }
+
+    if (validSamples.length === 0) return null;
+
+    const extractedEntries: { startTime: number; endTime: number; text: string }[] = [];
+    const decoder = new TextDecoder('utf-8');
+
+    // Read in fast parallel batches of 50 samples
+    const BATCH_SIZE = 50;
+    for (let b = 0; b < validSamples.length; b += BATCH_SIZE) {
+      const batch = validSamples.slice(b, b + BATCH_SIZE);
+      const buffers = await Promise.all(batch.map(item => file.slice(item.offset, item.offset + item.size).arrayBuffer()));
+
+      for (let i = 0; i < batch.length; i++) {
+        const item = batch[i];
+        const sBuf = buffers[i];
         if (sBuf.byteLength >= 2) {
           const sView = new DataView(sBuf);
           const textLen = sView.getUint16(0, false);
           if (textLen > 0 && textLen <= sBuf.byteLength - 2) {
             const rawTextBytes = new Uint8Array(sBuf, 2, textLen);
-            const text = decoder.decode(rawTextBytes).replace(/\r\n/g, '\n').trim();
+            const text = cleanSubtitleText(decoder.decode(rawTextBytes).replace(/\r\n/g, '\n'));
             if (text) {
               extractedEntries.push({
-                startTime: Math.max(0, startSec),
-                endTime: Math.max(startSec + 0.5, endSec),
+                startTime: Math.max(0, item.startSec),
+                endTime: Math.max(item.startSec + 0.5, item.endSec),
                 text
               });
             }
@@ -667,7 +935,7 @@ export async function extractAllMediaTracks(file: File): Promise<MediaTracksDisc
     for (const t of rawTracks) {
       if (t.type === 2) {
         const langName = formatLanguage(t.language);
-        const channelStr = t.channels === 6 ? '5.1' : t.channels === 8 ? '7.1' : t.channels === 2 ? 'Stereo' : t.channels ? `${t.channels}ch` : '';
+        const channelStr = t.channels === 6 ? '5.1 Surround' : t.channels === 8 ? '7.1 Surround' : t.channels === 2 ? 'Stereo' : t.channels ? `${t.channels}ch` : '';
         const codecShort = t.codecId.replace('A_', '').replace('AUDIO/', '');
         
         let label = t.name ? t.name : `Track ${audioIdx}: ${langName}`;
@@ -769,13 +1037,14 @@ export async function extractEmbeddedSubtitleTrack(file: File, trackNumber: numb
 }
 
 /**
- * Universal Embedded Subtitle Extractor Entry Point (Extracts first/default track on upload)
+ * Universal Embedded Subtitle Extractor Entry Point (Extracts default/English track on upload)
  */
 export async function extractEmbeddedSubtitles(file: File): Promise<ExtractedSubtitleResult | null> {
   const { subtitleTracks } = await extractAllMediaTracks(file);
   if (subtitleTracks.length === 0) return null;
 
-  const target = subtitleTracks.find(t => t.language.toLowerCase().startsWith('en')) || subtitleTracks[0];
+  // Prioritize English tracks if available, otherwise first track
+  const target = subtitleTracks.find(t => t.language.toLowerCase().startsWith('en') || t.label.toLowerCase().includes('english')) || subtitleTracks[0];
   if (target.number !== undefined) {
     const result = await extractEmbeddedSubtitleTrack(file, target.number, target.id);
     if (result) {
