@@ -57,8 +57,8 @@ interface VideoPlayerProps {
   saturation: number; // 0 to 200
   setSaturation: (val: number) => void;
 
-  currentTime: number;
-  setCurrentTime: (time: number) => void;
+  currentTime?: number;
+  setCurrentTime?: (time: number) => void;
   playbackSpeed: number;
   setPlaybackSpeed: (speed: number) => void;
 
@@ -97,8 +97,8 @@ export default function VideoPlayer({
   setContrast,
   saturation,
   setSaturation,
-  currentTime,
-  setCurrentTime,
+  currentTime: propCurrentTime,
+  setCurrentTime: propSetCurrentTime,
   playbackSpeed,
   setPlaybackSpeed,
   userVideoRef
@@ -106,6 +106,14 @@ export default function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const progressContainerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+
+  // Localized playback time state — updates at 60fps without forcing entire app tree re-renders
+  const [internalCurrentTime, setInternalCurrentTime] = useState<number>(0);
+  const currentTime = propCurrentTime !== undefined ? propCurrentTime : internalCurrentTime;
+  const setCurrentTime = (t: number) => {
+    setInternalCurrentTime(t);
+    if (propSetCurrentTime) propSetCurrentTime(t);
+  };
   
   // Internal player play state
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -226,6 +234,7 @@ export default function VideoPlayer({
   const watchdogTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAutoRecoveringRef = useRef<boolean>(false);
   const pendingSeekAfterRecoveryRef = useRef<number | null>(null);
+  const lastSavedPosTimeRef = useRef<number>(0);
 
   // Auto-dismiss recovery toast after 4.5s
   useEffect(() => {
@@ -352,60 +361,6 @@ export default function VideoPlayer({
   const [tooltipTime, setTooltipTime] = useState<number>(0);
   const [hoveringProgress, setHoveringProgress] = useState<boolean>(false);
 
-  const [audioEngine, setAudioEngine] = useState<AudioEngine | null>(null);
-
-  // Initialize AudioEngine
-  useEffect(() => {
-    if (userVideoRef.current) {
-      const engine = new AudioEngine(userVideoRef.current);
-      setAudioEngine(engine);
-
-      const handleUserGesture = () => {
-        engine.initialize();
-        engine.resume();
-        window.removeEventListener('click', handleUserGesture);
-        window.removeEventListener('keydown', handleUserGesture);
-      };
-
-      window.addEventListener('click', handleUserGesture);
-      window.addEventListener('keydown', handleUserGesture);
-
-      return () => {
-        window.removeEventListener('click', handleUserGesture);
-        window.removeEventListener('keydown', handleUserGesture);
-      };
-    }
-  }, [userVideoRef.current]);
-
-  // Volume Boost Sync
-  useEffect(() => {
-    if (audioEngine && isAudioEngineEnabled && userVideoRef.current) {
-      if (volumeBoost <= 100) {
-        userVideoRef.current.volume = volumeBoost / 100;
-        audioEngine.setVolumeBoost(100);
-      } else {
-        userVideoRef.current.volume = 1.0;
-        audioEngine.setVolumeBoost(volumeBoost);
-      }
-    } else if (userVideoRef.current) {
-      userVideoRef.current.volume = Math.min(volumeBoost, 100) / 100;
-    }
-  }, [volumeBoost, audioEngine, isAudioEngineEnabled]);
-
-  // Preset Sync
-  useEffect(() => {
-    if (audioEngine && isAudioEngineEnabled) {
-      audioEngine.applyPreset(activePreset);
-    }
-  }, [activePreset, audioEngine, isAudioEngineEnabled]);
-
-  // Smart Booster Sync
-  useEffect(() => {
-    if (audioEngine) {
-      audioEngine.setSmartBooster(isSmartBoostEnabled);
-    }
-  }, [isSmartBoostEnabled, audioEngine]);
-
   // Internal fallback dialogue boost state
   const [internalDialogueBoost, setInternalDialogueBoost] = useState<number>(0);
   const dialogueBoost = propDialogueBoost !== undefined ? propDialogueBoost : internalDialogueBoost;
@@ -430,19 +385,17 @@ export default function VideoPlayer({
     });
   };
 
-  // Dialogue Boost Filter Sync (+6dB to +12dB Center Channel Gain & Speech Presence)
-  useEffect(() => {
-    if (audioEngine && isAudioEngineEnabled) {
-      audioEngine.setDialogueBoost(dialogueBoost);
-    }
-  }, [dialogueBoost, audioEngine, isAudioEngineEnabled]);
-
-  // Instant Seamless Audio Delay Sync (-60.0s to +60.0s)
-  useEffect(() => {
-    if (audioEngine) {
-      audioEngine.setAudioDelay(audioDelay >= 0 ? audioDelay : 0);
-    }
-  }, [audioDelay, audioEngine]);
+  // Dedicated Audio Engine Hook (Single Source of Truth, avoids duplicate Web Audio contexts)
+  const { audioEngine } = useAudioEngine({
+    videoRef: userVideoRef,
+    activeVideo,
+    isAudioEngineEnabled,
+    volumeBoost,
+    isSmartBoostEnabled,
+    activePreset,
+    dialogueBoost,
+    audioDelay,
+  });
 
   // Handle active video URL, YouTube, HLS live streams, or file changes
   useEffect(() => {
@@ -548,24 +501,47 @@ export default function VideoPlayer({
     };
   }, [activeVideo]);
 
-  // Active subtitles tracker
+  // Active subtitles tracker using O(log N) binary search
   useEffect(() => {
     if (!cues.length) {
       setActiveSubtitleText('');
       return;
     }
 
-    // Apply subtitle shifting delay offset
     const timeWithDelay = currentTime - subtitleDelay;
-    const activeCue = cues.find(
-      (cue) => timeWithDelay >= cue.startTime && timeWithDelay <= cue.endTime
-    );
+    
+    // Fast O(log N) binary search on chronologically sorted cues
+    let low = 0;
+    let high = cues.length - 1;
+    let activeCue: SubtitleCue | null = null;
 
-    if (activeCue) {
-      setActiveSubtitleText(activeCue.text);
-    } else {
-      setActiveSubtitleText('');
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const cue = cues[mid];
+      if (timeWithDelay >= cue.startTime && timeWithDelay <= cue.endTime) {
+        activeCue = cue;
+        break;
+      } else if (timeWithDelay < cue.startTime) {
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
     }
+
+    // Check immediate boundary neighbors for slight cue overlaps
+    if (!activeCue) {
+      const checkStart = Math.max(0, low - 2);
+      const checkEnd = Math.min(cues.length - 1, low + 2);
+      for (let i = checkStart; i <= checkEnd; i++) {
+        const cue = cues[i];
+        if (timeWithDelay >= cue.startTime && timeWithDelay <= cue.endTime) {
+          activeCue = cue;
+          break;
+        }
+      }
+    }
+
+    setActiveSubtitleText(activeCue ? activeCue.text : '');
   }, [currentTime, cues, subtitleDelay]);
 
   // Auto-hide controls & mouse cursor handler (YouTube style)
@@ -656,11 +632,7 @@ export default function VideoPlayer({
 
     if (userVideoRef.current) {
       userVideoRef.current.volume = 1.0;
-      let engine = audioEngine;
-      if (!engine) {
-        engine = new AudioEngine(userVideoRef.current);
-        setAudioEngine(engine);
-      }
+      const engine = audioEngine || AudioEngine.getOrCreate(userVideoRef.current);
       engine.initialize();
       engine.resume();
       engine.setVolumeBoost(newVol);
@@ -816,9 +788,13 @@ export default function VideoPlayer({
     const current = userVideoRef.current.currentTime;
     setCurrentTime(current);
 
-    // Persist position matching index
+    // Throttled position persistence (save every 2.5s instead of every tick to avoid synchronous disk I/O)
     if (activeVideo) {
-      localStorage.setItem(`playback-pos-${activeVideo.id}`, current.toString());
+      const now = Date.now();
+      if (now - lastSavedPosTimeRef.current > 2500) {
+        lastSavedPosTimeRef.current = now;
+        localStorage.setItem(`playback-pos-${activeVideo.id}`, current.toString());
+      }
     }
 
     // A-B Looper trigger checks
@@ -1010,13 +986,7 @@ export default function VideoPlayer({
     setHoveringProgress(true);
   };
 
-  // Bookmark active video timestamps
-  const handleAddCustomBookmark = () => {
-    if (!activeVideo || !bookmarkNote.trim()) return;
-    onAddBookmark(activeVideo.id, currentTime, bookmarkNote.trim());
-    setBookmarkNote('');
-    setShowBookmarkInput(false);
-  };
+
 
   // Formatter for visual display: HH:MM:SS
   const formatSeconds = (sec: number) => {

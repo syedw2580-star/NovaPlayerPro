@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AudioEngine } from '../utils/audioEngine';
 import { VideoItem } from '../types';
 
@@ -24,75 +24,86 @@ export function useAudioEngine({
   audioDelay,
 }: UseAudioEngineProps) {
   const [audioEngine, setAudioEngine] = useState<AudioEngine | null>(null);
+  const currentEngineRef = useRef<AudioEngine | null>(null);
 
-  // Initialize AudioEngine whenever activeVideo or videoRef.current is ready
+  // Initialize or attach AudioEngine whenever activeVideo changes
   useEffect(() => {
-    if (videoRef.current) {
-      const engine = AudioEngine.getOrCreate(videoRef.current);
-      setAudioEngine(engine);
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    const engine = AudioEngine.getOrCreate(videoEl);
+    setAudioEngine(engine);
+    currentEngineRef.current = engine;
+    engine.initialize();
+
+    const handleUserGesture = () => {
       engine.initialize();
+      engine.resume();
+    };
 
-      const handleUserGesture = () => {
-        engine.initialize();
-        engine.resume();
-      };
+    window.addEventListener('click', handleUserGesture, { passive: true });
+    window.addEventListener('keydown', handleUserGesture, { passive: true });
 
-      window.addEventListener('click', handleUserGesture);
-      window.addEventListener('keydown', handleUserGesture);
-
-      return () => {
-        window.removeEventListener('click', handleUserGesture);
-        window.removeEventListener('keydown', handleUserGesture);
-      };
-    }
-  }, [videoRef.current, activeVideo]);
+    return () => {
+      window.removeEventListener('click', handleUserGesture);
+      window.removeEventListener('keydown', handleUserGesture);
+    };
+  }, [activeVideo?.id, videoRef]);
 
   // Sync volume boost, HTML5 video element volume, and smart booster state
   useEffect(() => {
-    const engine = audioEngine || (videoRef.current ? AudioEngine.getOrCreate(videoRef.current) : null);
-    if (engine && videoRef.current) {
-      engine.initialize();
-      engine.resume();
+    const engine = audioEngine;
+    const videoEl = videoRef.current;
+    if (!engine || !videoEl) return;
 
-      if (isAudioEngineEnabled) {
-        if (volumeBoost <= 100) {
-          videoRef.current.volume = Math.max(0, volumeBoost / 100);
-          engine.setVolumeBoost(100);
-        } else {
-          videoRef.current.volume = 1.0;
-          engine.setVolumeBoost(volumeBoost); // 150%, 200%, 300% loudness boost!
-        }
-        engine.setSmartBooster(isSmartBoostEnabled);
-      } else {
-        videoRef.current.volume = Math.min(Math.max(0, volumeBoost), 100) / 100;
+    engine.initialize();
+    engine.resume();
+
+    if (isAudioEngineEnabled) {
+      if (volumeBoost <= 100) {
+        videoEl.volume = Math.max(0, volumeBoost / 100);
         engine.setVolumeBoost(100);
+      } else {
+        videoEl.volume = 1.0;
+        engine.setVolumeBoost(volumeBoost); // 150%, 200%, 300% loudness boost!
       }
+      engine.setSmartBooster(isSmartBoostEnabled);
+    } else {
+      videoEl.volume = Math.min(Math.max(0, volumeBoost), 100) / 100;
+      engine.setVolumeBoost(100);
+      engine.setSmartBooster(false);
     }
-  }, [audioEngine, isAudioEngineEnabled, volumeBoost, isSmartBoostEnabled, activeVideo, videoRef.current]);
+  }, [audioEngine, isAudioEngineEnabled, volumeBoost, isSmartBoostEnabled, videoRef]);
 
   // Sync Dialogue Boost (Center Channel Gain & Speech Clarity Formant Filter)
   useEffect(() => {
-    const engine = audioEngine || (videoRef.current ? AudioEngine.getOrCreate(videoRef.current) : null);
-    if (engine && isAudioEngineEnabled) {
-      engine.setDialogueBoost(dialogueBoost);
+    if (audioEngine && isAudioEngineEnabled) {
+      audioEngine.setDialogueBoost(dialogueBoost);
     }
-  }, [audioEngine, dialogueBoost, isAudioEngineEnabled, videoRef.current]);
+  }, [audioEngine, dialogueBoost, isAudioEngineEnabled]);
 
   // Sync equalizer presets
   useEffect(() => {
-    const engine = audioEngine || (videoRef.current ? AudioEngine.getOrCreate(videoRef.current) : null);
-    if (engine && isAudioEngineEnabled) {
-      engine.applyPreset(activePreset);
+    if (audioEngine && isAudioEngineEnabled) {
+      audioEngine.applyPreset(activePreset);
     }
-  }, [audioEngine, activePreset, isAudioEngineEnabled, videoRef.current]);
+  }, [audioEngine, activePreset, isAudioEngineEnabled]);
 
   // Sync audio stream delay offset
   useEffect(() => {
-    const engine = audioEngine || (videoRef.current ? AudioEngine.getOrCreate(videoRef.current) : null);
-    if (engine) {
-      engine.setAudioDelay(audioDelay > 0 ? audioDelay : 0);
+    if (audioEngine) {
+      audioEngine.setAudioDelay(audioDelay > 0 ? audioDelay : 0);
     }
-  }, [audioEngine, audioDelay, videoRef.current]);
+  }, [audioEngine, audioDelay]);
+
+  // Clean up AudioContext when component permanently unmounts
+  useEffect(() => {
+    return () => {
+      if (currentEngineRef.current) {
+        currentEngineRef.current.close();
+      }
+    };
+  }, []);
 
   return { audioEngine };
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { VideoItem, Playlist, SubtitleCue, Bookmark, MediaAudioTrack, MediaSubtitleTrack } from './types';
 import { defaultVideos, sampleSrtSubtitles } from './data/defaultCatalog';
 import { parseSubtitles } from './utils/subtitleParser';
@@ -25,36 +25,31 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { Film, List as ListIcon, Subtitles, Bookmark as BookmarkIcon, Github, Laptop, Sparkles, HelpCircle, HardDriveDownload } from 'lucide-react';
 
 export default function App() {
-  // Video library list state (pre-loaded with default public videos)
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
-
-  // Saved playlists
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
-  // Subtitle cues & sync adjustments
+  // Subtitle cues & multi-track streams state
   const [cues, setCues] = useState<SubtitleCue[]>([]);
-  const [audioTracks, setAudioTracks] = useState<MediaAudioTrack[]>([]);
-  const [activeAudioTrackId, setActiveAudioTrackId] = useState<string>('');
   const [subtitleTracks, setSubtitleTracks] = useState<MediaSubtitleTrack[]>([]);
-  const [activeSubtitleTrackId, setActiveSubtitleTrackId] = useState<string>('');
+  const [activeSubtitleTrackId, setActiveSubtitleTrackId] = useState<string>('off');
+  const [audioTracks, setAudioTracks] = useState<MediaAudioTrack[]>([]);
+  const [activeAudioTrackId, setActiveAudioTrackId] = useState<string>('audio-track-default');
 
+  // Subtitle preferences
+  const [subtitleSize, setSubtitleSize] = useState<number>(24);
   const [subtitleDelay, setSubtitleDelay] = useState<number>(0);
-  const [audioDelay, setAudioDelay] = useState<number>(0); // Audio sync delay offset in seconds (-5.0s to +5.0s)
-  const [subtitleSize, setSubtitleSize] = useState<number>(20);
-  const [subtitlePosition, setSubtitlePosition] = useState<number>(8); // in percentage from bottom
+  const [subtitlePosition, setSubtitlePosition] = useState<number>(8); // bottom offset in %
 
-  // Visual filters & Tone EQ presets
-  const [volumeBoost, setVolumeBoost] = useState<number>(100); // starts at 100% (max standard) up to 200%
+  // Audio & video controls
+  const [audioDelay, setAudioDelay] = useState<number>(0);
+  const [volumeBoost, setVolumeBoost] = useState<number>(100);
   const [activePreset, setActivePreset] = useState<'flat' | 'bass' | 'vocal' | 'cinema' | 'treble' | 'dialogue'>('flat');
   const [dialogueBoost, setDialogueBoost] = useState<number>(0); // in dB: 0 (Off), 6 (+6dB), 12 (+12dB)
   const [brightness, setBrightness] = useState<number>(100);
   const [contrast, setContrast] = useState<number>(100);
   const [saturation, setSaturation] = useState<number>(100);
-
-  // Common time state of active playing video
-  const [currentTime, setCurrentTime] = useState<number>(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
 
   // Bookmarks
@@ -65,6 +60,9 @@ export default function App() {
 
   // Drag and drop overlay state
   const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Abort controller ref for in-flight subtitle extraction cancellation
+  const extractionAbortControllerRef = useRef<AbortController | null>(null);
 
   // Object URLs registry for fast teardown
   const createdObjectUrlsRef = useRef<Set<string>>(new Set());
@@ -79,13 +77,16 @@ export default function App() {
     return () => {
       createdObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       createdObjectUrlsRef.current.clear();
+      if (extractionAbortControllerRef.current) {
+        extractionAbortControllerRef.current.abort();
+      }
     };
   }, []);
 
   // Raw HTML5 video node reference
   const userVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const checkAndAutoLoadSubtitles = async (video: VideoItem | null) => {
+  const checkAndAutoLoadSubtitles = useCallback(async (video: VideoItem | null) => {
     // 1. Immediately flush all previous cues and tracks so no tracks ever leak across videos
     setCues([]);
     setSubtitleTracks([]);
@@ -101,10 +102,18 @@ export default function App() {
 
     if (!video) return;
 
+    if (extractionAbortControllerRef.current) {
+      extractionAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    extractionAbortControllerRef.current = controller;
+
     if (video.file) {
       try {
         const fileObj = video.file as File;
         const tracks = await extractAllMediaTracks(fileObj);
+        if (controller.signal.aborted) return;
+
         if (tracks.audioTracks.length > 0) {
           setAudioTracks(tracks.audioTracks);
           setActiveAudioTrackId(tracks.audioTracks[0].id);
@@ -135,7 +144,8 @@ export default function App() {
           const chosenSub = enSub || allSubs[0];
           setActiveSubtitleTrackId(chosenSub.id);
           if (chosenSub.number !== undefined) {
-            const result = await extractEmbeddedSubtitleTrack(fileObj, chosenSub.number, chosenSub.id);
+            const result = await extractEmbeddedSubtitleTrack(fileObj, chosenSub.number, chosenSub.id, controller.signal);
+            if (controller.signal.aborted) return;
             if (result && result.cues.length > 0) {
               chosenSub.cues = result.cues;
               chosenSub.srtText = result.srtText;
@@ -158,9 +168,9 @@ export default function App() {
       setActiveSubtitleTrackId('sub-ext');
       return;
     }
-  };
+  }, []);
 
-  const handleSelectAudioTrack = (trackId: string) => {
+  const handleSelectAudioTrack = useCallback((trackId: string) => {
     setActiveAudioTrackId(trackId);
     setAudioTracks(prev => prev.map(t => ({
       ...t,
@@ -171,16 +181,19 @@ export default function App() {
     if (userVideoRef.current) {
       const videoEl = userVideoRef.current as any;
       if (videoEl.audioTracks && videoEl.audioTracks.length > 0) {
-        const selectedTrk = audioTracks.find(t => t.id === trackId);
-        const targetIdx = selectedTrk ? selectedTrk.index : 0;
-        for (let i = 0; i < videoEl.audioTracks.length; i++) {
-          videoEl.audioTracks[i].enabled = (i === targetIdx);
-        }
+        setAudioTracks(prev => {
+          const selectedTrk = prev.find(t => t.id === trackId);
+          const targetIdx = selectedTrk ? selectedTrk.index : 0;
+          for (let i = 0; i < videoEl.audioTracks.length; i++) {
+            videoEl.audioTracks[i].enabled = (i === targetIdx);
+          }
+          return prev;
+        });
       }
     }
-  };
+  }, []);
 
-  const handleSelectSubtitleTrack = async (trackId: string) => {
+  const handleSelectSubtitleTrack = useCallback(async (trackId: string) => {
     setActiveSubtitleTrackId(trackId);
 
     if (trackId === 'off' || !trackId) {
@@ -207,10 +220,18 @@ export default function App() {
       return;
     }
 
+    // Cancel any previous extraction in flight
+    if (extractionAbortControllerRef.current) {
+      extractionAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    extractionAbortControllerRef.current = controller;
+
     // 2. High-speed extraction for MKV or MP4 embedded track
     if (activeVideo?.file && selectedTrack.number !== undefined) {
       try {
-        const extracted = await extractEmbeddedSubtitleTrack(activeVideo.file as File, selectedTrack.number, selectedTrack.id);
+        const extracted = await extractEmbeddedSubtitleTrack(activeVideo.file as File, selectedTrack.number, selectedTrack.id, controller.signal);
+        if (controller.signal.aborted) return;
         if (extracted && extracted.cues.length > 0) {
           selectedTrack.cues = extracted.cues;
           selectedTrack.srtText = extracted.srtText;
@@ -223,7 +244,7 @@ export default function App() {
         setCues([]);
       }
     }
-  };
+  }, [subtitleTracks, activeVideo]);
 
   // Load custom values and storage arrays on mount
   useEffect(() => {
@@ -461,7 +482,13 @@ export default function App() {
     await saveAppState('active_video_id', id);
   };
 
-  const handleDeleteVideo = async (id: string) => {
+  const handleSelectVideo = useCallback(async (video: VideoItem) => {
+    setActiveVideo(video);
+    await checkAndAutoLoadSubtitles(video);
+    await saveAppState('active_video_id', video.id);
+  }, [checkAndAutoLoadSubtitles]);
+
+  const handleDeleteVideo = useCallback(async (id: string) => {
     try {
       await deleteVideoFromDB(id);
     } catch (e) {
@@ -483,54 +510,60 @@ export default function App() {
       await checkAndAutoLoadSubtitles(nextActive);
       await saveAppState('active_video_id', nextActive?.id || '');
     }
-  };
+  }, [videos, activeVideo, checkAndAutoLoadSubtitles]);
 
   // PlaylistItem operations
-  const handleAddPlaylist = (name: string) => {
+  const handleAddPlaylist = useCallback((name: string) => {
     const newPl: Playlist = {
       id: `playlist-${Date.now()}`,
       name,
       videoIds: [],
       createdAt: Date.now()
     };
-    const updated = [...playlists, newPl];
-    setPlaylists(updated);
-    localStorage.setItem('power_player_playlists', JSON.stringify(updated));
-  };
-
-  const handleDeletePlaylist = (id: string) => {
-    const updated = playlists.filter(p => p.id !== id);
-    setPlaylists(updated);
-    localStorage.setItem('power_player_playlists', JSON.stringify(updated));
-    if (activePlaylistId === id) {
-      setActivePlaylistId(null);
-    }
-  };
-
-  const handleAddVideoToPlaylist = (playlistId: string, videoId: string) => {
-    const updated = playlists.map(p => {
-      if (p.id === playlistId && !p.videoIds.includes(videoId)) {
-        return { ...p, videoIds: [...p.videoIds, videoId] };
-      }
-      return p;
+    setPlaylists(prev => {
+      const updated = [...prev, newPl];
+      localStorage.setItem('power_player_playlists', JSON.stringify(updated));
+      return updated;
     });
-    setPlaylists(updated);
-    localStorage.setItem('power_player_playlists', JSON.stringify(updated));
-  };
+  }, []);
 
-  const handleRemoveVideoFromPlaylist = (playlistId: string, videoId: string) => {
-    const updated = playlists.map(p => {
-      if (p.id === playlistId) {
-        return { ...p, videoIds: p.videoIds.filter(id => id !== videoId) };
-      }
-      return p;
+  const handleDeletePlaylist = useCallback((id: string) => {
+    setPlaylists(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      localStorage.setItem('power_player_playlists', JSON.stringify(updated));
+      return updated;
     });
-    setPlaylists(updated);
-    localStorage.setItem('power_player_playlists', JSON.stringify(updated));
-  };
+    setActivePlaylistId(prev => (prev === id ? null : prev));
+  }, []);
+
+  const handleAddVideoToPlaylist = useCallback((playlistId: string, videoId: string) => {
+    setPlaylists(prev => {
+      const updated = prev.map(p => {
+        if (p.id === playlistId && !p.videoIds.includes(videoId)) {
+          return { ...p, videoIds: [...p.videoIds, videoId] };
+        }
+        return p;
+      });
+      localStorage.setItem('power_player_playlists', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const handleRemoveVideoFromPlaylist = useCallback((playlistId: string, videoId: string) => {
+    setPlaylists(prev => {
+      const updated = prev.map(p => {
+        if (p.id === playlistId) {
+          return { ...p, videoIds: p.videoIds.filter(id => id !== videoId) };
+        }
+        return p;
+      });
+      localStorage.setItem('power_player_playlists', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   // Bookmark operations
-  const handleAddBookmark = (videoId: string, time: number, note: string) => {
+  const handleAddBookmark = useCallback((videoId: string, time: number, note: string) => {
     const newBookmark: Bookmark = {
       id: `bookmark-${Date.now()}`,
       videoId,
@@ -538,24 +571,27 @@ export default function App() {
       note,
       createdAt: Date.now()
     };
-    const updated = [...bookmarks, newBookmark];
-    setBookmarks(updated);
-    localStorage.setItem('power_player_bookmarks', JSON.stringify(updated));
-  };
+    setBookmarks(prev => {
+      const updated = [...prev, newBookmark];
+      localStorage.setItem('power_player_bookmarks', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
-  const handleRemoveBookmark = (id: string) => {
-    const updated = bookmarks.filter(b => b.id !== id);
-    setBookmarks(updated);
-    localStorage.setItem('power_player_bookmarks', JSON.stringify(updated));
-  };
+  const handleRemoveBookmark = useCallback((id: string) => {
+    setBookmarks(prev => {
+      const updated = prev.filter(b => b.id !== id);
+      localStorage.setItem('power_player_bookmarks', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   // Seek current playing movie
-  const handleSeekVideo = (time: number) => {
+  const handleSeekVideo = useCallback((time: number) => {
     if (userVideoRef.current) {
       userVideoRef.current.currentTime = time;
-      setCurrentTime(time);
     }
-  };
+  }, []);
 
   // Drag and drop files events
   const handleDragOver = (e: React.DragEvent) => {
@@ -615,7 +651,7 @@ export default function App() {
   };
 
   // Handles Sequential Playlist auto playing
-  const playNextInQueue = async () => {
+  const playNextInQueue = useCallback(async () => {
     if (!activeVideo) return;
     
     // Build active queue based on catalog filters or active playlist content
@@ -640,9 +676,9 @@ export default function App() {
       await checkAndAutoLoadSubtitles(nextVid);
       await saveAppState('active_video_id', nextVid.id);
     }
-  };
+  }, [activeVideo, videos, activePlaylistId, playlists, checkAndAutoLoadSubtitles]);
 
-  const playPrevInQueue = async () => {
+  const playPrevInQueue = useCallback(async () => {
     if (!activeVideo) return;
     
     let queue = videos;
@@ -666,7 +702,7 @@ export default function App() {
       await checkAndAutoLoadSubtitles(prevVid);
       await saveAppState('active_video_id', prevVid.id);
     }
-  };
+  }, [activeVideo, videos, activePlaylistId, playlists, checkAndAutoLoadSubtitles]);
 
   // If a video hits custom end trigger, auto play next
   useEffect(() => {
@@ -681,7 +717,7 @@ export default function App() {
         vNode.removeEventListener('ended', handleEnded);
       };
     }
-  }, [activeVideo, videos, activePlaylistId, playlists]);
+  }, [playNextInQueue]);
 
   return (
     <div
@@ -770,8 +806,6 @@ export default function App() {
               setContrast={setContrast}
               saturation={saturation}
               setSaturation={setSaturation}
-              currentTime={currentTime}
-              setCurrentTime={setCurrentTime}
               playbackSpeed={playbackSpeed}
               setPlaybackSpeed={setPlaybackSpeed}
             />
@@ -829,11 +863,7 @@ export default function App() {
                   videos={videos}
                   playlists={playlists}
                   activeVideo={activeVideo}
-                  onSelectVideo={async (video) => {
-                    setActiveVideo(video);
-                    await checkAndAutoLoadSubtitles(video);
-                    await saveAppState('active_video_id', video.id);
-                  }}
+                  onSelectVideo={handleSelectVideo}
                   onAddLocalVideo={handleAddMultipleLocalFiles}
                   onAddRemoteUrl={handleAddRemoteUrl}
                   onAddPlaylist={handleAddPlaylist}
@@ -862,7 +892,7 @@ export default function App() {
                   subtitlePosition={subtitlePosition}
                   setSubtitlePosition={setSubtitlePosition}
                   onSeek={handleSeekVideo}
-                  currentTime={currentTime}
+                  videoRef={userVideoRef}
                 />
               )}
 

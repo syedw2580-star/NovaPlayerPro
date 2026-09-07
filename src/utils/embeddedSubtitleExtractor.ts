@@ -226,9 +226,18 @@ async function parseMKVTracks(file: File): Promise<RawEBMLTrack[]> {
                       channels = (channels * 256) + headerBuffer[audioOffset + i];
                     }
                   }
-                  // 0xB5 = SamplingFrequency
+                  // 0xB5 = SamplingFrequency (IEEE 754 float: 4 bytes = float32, 8 bytes = float64)
                   else if (aId.id === 0xB5 && aSize.value <= 8) {
-                    samplingFrequency = 48000;
+                    if (audioOffset + aSize.value <= headerBuffer.length) {
+                      const dv = new DataView(headerBuffer.buffer, headerBuffer.byteOffset + audioOffset, aSize.value);
+                      if (aSize.value === 4) {
+                        samplingFrequency = Math.round(dv.getFloat32(0, false));
+                      } else if (aSize.value === 8) {
+                        samplingFrequency = Math.round(dv.getFloat64(0, false));
+                      } else {
+                        samplingFrequency = 48000;
+                      }
+                    }
                   }
                   audioOffset += aSize.value;
                 }
@@ -270,7 +279,7 @@ async function parseMKVTracks(file: File): Promise<RawEBMLTrack[]> {
  * Ultra-Fast Streaming Matroska (MKV/WebM) Subtitle Track Extractor.
  * Parses Clusters and extracts BlockGroup / SimpleBlock packets with millisecond precision.
  */
-export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: number): Promise<ExtractedSubtitleResult | null> {
+export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: number, signal?: AbortSignal): Promise<ExtractedSubtitleResult | null> {
   try {
     const fileSize = file.size;
     const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB sliding buffer
@@ -283,6 +292,7 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
     let bytesInBuffer = 0;
     let bufferStartFilePos = 0;
     let offset = 0;
+    let loopIterations = 0;
 
     const ensureBytes = async (needed: number): Promise<boolean> => {
       if (offset + needed <= bytesInBuffer) return true;
@@ -312,6 +322,14 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
     bytesInBuffer = initBuf.byteLength;
 
     while (bufferStartFilePos + offset < fileSize) {
+      if (signal?.aborted) return null;
+      loopIterations++;
+      if (loopIterations % 80 === 0) {
+        // Cooperative yield to keep browser UI responsive during large file scans
+        await new Promise(r => setTimeout(r, 0));
+        if (signal?.aborted) return null;
+      }
+
       if (!(await ensureBytes(16))) break;
 
       const el = readElementId(buffer, offset);
@@ -673,8 +691,9 @@ async function parseMP4Tracks(file: File): Promise<RawMP4Track[]> {
  * Ultra-Fast Batched MP4 Subtitle Track Extractor.
  * Reads sample headers from moov and streams non-empty subtitle text in fast parallel batches.
  */
-export async function extractMP4SubtitleTrack(file: File, targetTrackId: number): Promise<ExtractedSubtitleResult | null> {
+export async function extractMP4SubtitleTrack(file: File, targetTrackId: number, signal?: AbortSignal): Promise<ExtractedSubtitleResult | null> {
   try {
+    if (signal?.aborted) return null;
     const moovData = await getMP4MoovData(file);
     if (!moovData) return null;
 
@@ -852,6 +871,11 @@ export async function extractMP4SubtitleTrack(file: File, targetTrackId: number)
     // Read in fast parallel batches of 50 samples
     const BATCH_SIZE = 50;
     for (let b = 0; b < validSamples.length; b += BATCH_SIZE) {
+      if (signal?.aborted) return null;
+      if (b > 0 && b % (BATCH_SIZE * 2) === 0) {
+        await new Promise(r => setTimeout(r, 0));
+        if (signal?.aborted) return null;
+      }
       const batch = validSamples.slice(b, b + BATCH_SIZE);
       const buffers = await Promise.all(batch.map(item => file.slice(item.offset, item.offset + item.size).arrayBuffer()));
 
@@ -1025,14 +1049,14 @@ export async function extractAllMediaTracks(file: File): Promise<MediaTracksDisc
 /**
  * Universal Subtitle Extractor for a specific Track by number/ID.
  */
-export async function extractEmbeddedSubtitleTrack(file: File, trackNumber: number, trackId?: string): Promise<ExtractedSubtitleResult | null> {
+export async function extractEmbeddedSubtitleTrack(file: File, trackNumber: number, trackId?: string, signal?: AbortSignal): Promise<ExtractedSubtitleResult | null> {
   const name = file.name.toLowerCase();
   const isMKV = name.endsWith('.mkv') || name.endsWith('.webm') || (trackId && trackId.includes('mkv'));
 
   if (isMKV) {
-    return extractMKVSubtitleTrack(file, trackNumber);
+    return extractMKVSubtitleTrack(file, trackNumber, signal);
   } else {
-    return extractMP4SubtitleTrack(file, trackNumber);
+    return extractMP4SubtitleTrack(file, trackNumber, signal);
   }
 }
 

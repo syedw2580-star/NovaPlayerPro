@@ -26,6 +26,7 @@ export class AudioEngine {
   private limiter: WaveShaperNode | null = null;
   private isInitialized = false;
   private dialogueBoostGainDb: number = 0;
+  private isSmartBoostActive = true;
 
   constructor(private videoElement: HTMLVideoElement) {}
 
@@ -37,11 +38,11 @@ export class AudioEngine {
       this.ctx = new AudioCtxClass();
 
       this.source = this.ctx.createMediaElementSource(this.videoElement);
-      this.source.channelCount = 2;
-      this.source.channelCountMode = 'explicit';
+      // Allow browser to pass native multichannel stream if decoded
+      this.source.channelCountMode = 'max';
       this.source.channelInterpretation = 'speakers';
 
-      // Vocal Speech Presence & Formant Filter (2.2 kHz peaking)
+      // Vocal Speech Presence & Formant Filter (2.2 kHz peaking for crystal-clear dialogue)
       this.dialogueFilter = this.ctx.createBiquadFilter();
       this.dialogueFilter.type = 'peaking';
       this.dialogueFilter.frequency.value = 2200;
@@ -84,38 +85,50 @@ export class AudioEngine {
       this.delayNode = this.ctx.createDelay(65.0);
       this.delayNode.delayTime.value = 0.0;
 
+      // 5.1 Channel Splitter with graceful stereo fallback
+      let isMultichannelRouted = false;
       try {
-        const splitter = this.ctx.createChannelSplitter(6);
-        const merger = this.ctx.createChannelMerger(2);
+        if (this.ctx.destination.maxChannelCount >= 6) {
+          const splitter = this.ctx.createChannelSplitter(6);
+          const merger = this.ctx.createChannelMerger(2);
 
-        this.centerGainL = this.ctx.createGain();
-        this.centerGainR = this.ctx.createGain();
-        this.centerGainL.gain.value = 0.707;
-        this.centerGainR.gain.value = 0.707;
+          this.centerGainL = this.ctx.createGain();
+          this.centerGainR = this.ctx.createGain();
+          this.centerGainL.gain.value = 0.707;
+          this.centerGainR.gain.value = 0.707;
 
-        this.surroundGainL = this.ctx.createGain();
-        this.surroundGainR = this.ctx.createGain();
-        this.surroundGainL.gain.value = 0.707;
-        this.surroundGainR.gain.value = 0.707;
+          this.surroundGainL = this.ctx.createGain();
+          this.surroundGainR = this.ctx.createGain();
+          this.surroundGainL.gain.value = 0.707;
+          this.surroundGainR.gain.value = 0.707;
 
-        this.source.connect(splitter);
+          this.source.connect(splitter);
 
-        splitter.connect(merger, 0, 0);
-        splitter.connect(merger, 1, 1);
+          // Front Left & Right
+          splitter.connect(merger, 0, 0);
+          splitter.connect(merger, 1, 1);
 
-        splitter.connect(this.centerGainL, 2);
-        splitter.connect(this.centerGainR, 2);
-        this.centerGainL.connect(merger, 0, 0);
-        this.centerGainR.connect(merger, 0, 1);
+          // Center Channel routed to both Left and Right with dialogue gain
+          splitter.connect(this.centerGainL, 2);
+          splitter.connect(this.centerGainR, 2);
+          this.centerGainL.connect(merger, 0, 0);
+          this.centerGainR.connect(merger, 0, 1);
 
-        splitter.connect(this.surroundGainL, 4);
-        this.surroundGainL.connect(merger, 0, 0);
+          // Surrounds
+          splitter.connect(this.surroundGainL, 4);
+          this.surroundGainL.connect(merger, 0, 0);
 
-        splitter.connect(this.surroundGainR, 5);
-        this.surroundGainR.connect(merger, 0, 1);
+          splitter.connect(this.surroundGainR, 5);
+          this.surroundGainR.connect(merger, 0, 1);
 
-        merger.connect(this.dialogueFilter);
+          merger.connect(this.dialogueFilter);
+          isMultichannelRouted = true;
+        }
       } catch (downmixErr) {
+        console.warn('Multichannel downmix setup fallback to stereo:', downmixErr);
+      }
+
+      if (!isMultichannelRouted) {
         this.source.connect(this.dialogueFilter);
       }
 
@@ -127,7 +140,7 @@ export class AudioEngine {
       this.updateOutputRouting();
 
       this.isInitialized = true;
-      console.log('AudioEngine initialized with 5.1 Center-Channel Dialogue Boost + ffmpeg compand DSP pipeline.');
+      console.log('AudioEngine initialized with DSP pipeline (Smart Boost + EQ + Limiter).');
     } catch (e) {
       console.error('AudioEngine initialization failed:', e);
     }
@@ -151,8 +164,8 @@ export class AudioEngine {
       if (this.limiter) this.limiter.disconnect();
       if (this.delayNode) this.delayNode.disconnect();
 
-      // DSP Chain: GainNode -> Compressor (Compander) -> Limiter (alimiter=0.95) -> DelayNode -> Destination
-      if (this.compressor && this.limiter) {
+      // When Smart Boost is active, route through Compander + Soft-Clipper Limiter
+      if (this.isSmartBoostActive && this.compressor && this.limiter) {
         this.gainNode.connect(this.compressor);
         this.compressor.connect(this.limiter);
         if (this.delayNode) {
@@ -161,18 +174,22 @@ export class AudioEngine {
         } else {
           this.limiter.connect(this.ctx.destination);
         }
-      } else if (this.delayNode) {
-        this.gainNode.connect(this.delayNode);
-        this.delayNode.connect(this.ctx.destination);
       } else {
-        this.gainNode.connect(this.ctx.destination);
+        // Transparent / bypassed: clean straight pass from GainNode to Delay/Destination
+        if (this.delayNode) {
+          this.gainNode.connect(this.delayNode);
+          this.delayNode.connect(this.ctx.destination);
+        } else {
+          this.gainNode.connect(this.ctx.destination);
+        }
       }
     } catch (e) {
       console.warn('AudioEngine output routing warning:', e);
     }
   }
 
-  public setSmartBooster(_enabled: boolean) {
+  public setSmartBooster(enabled: boolean) {
+    this.isSmartBoostActive = enabled;
     if (!this.isInitialized) this.initialize();
     this.resume();
     this.updateOutputRouting();
@@ -245,26 +262,47 @@ export class AudioEngine {
       }
     }
 
-    // Vocal presence formant filter (2.2 kHz peaking filter):
+    // Also adjust dialogue formant filter gain for speech presence boost
     if (this.dialogueFilter && this.ctx) {
-      const targetFilterGain = gainDb > 0 ? Math.min(gainDb * 0.75, 8.0) : 0;
+      const formantGain = Math.min(gainDb, 8); // max +8dB formant boost
       try {
         this.dialogueFilter.gain.cancelScheduledValues(now);
         this.dialogueFilter.gain.setValueAtTime(this.dialogueFilter.gain.value, now);
-        this.dialogueFilter.gain.linearRampToValueAtTime(targetFilterGain, now + 0.05);
+        this.dialogueFilter.gain.linearRampToValueAtTime(formantGain, now + 0.05);
       } catch (e) {
-        this.dialogueFilter.gain.value = targetFilterGain;
+        this.dialogueFilter.gain.value = formantGain;
       }
     }
   }
 
-  public setEqualizer(bass: number, mid: number, treble: number) {
+  public setEqualizer(bassGain: number, midGain: number, trebleGain: number) {
     if (!this.isInitialized) this.initialize();
     this.resume();
 
-    if (this.bassFilter) this.bassFilter.gain.value = bass;
-    if (this.midFilter) this.midFilter.gain.value = mid;
-    if (this.trebleFilter) this.trebleFilter.gain.value = treble;
+    if (this.ctx) {
+      const now = this.ctx.currentTime;
+      try {
+        if (this.bassFilter) {
+          this.bassFilter.gain.cancelScheduledValues(now);
+          this.bassFilter.gain.setValueAtTime(this.bassFilter.gain.value, now);
+          this.bassFilter.gain.linearRampToValueAtTime(bassGain, now + 0.05);
+        }
+        if (this.midFilter) {
+          this.midFilter.gain.cancelScheduledValues(now);
+          this.midFilter.gain.setValueAtTime(this.midFilter.gain.value, now);
+          this.midFilter.gain.linearRampToValueAtTime(midGain, now + 0.05);
+        }
+        if (this.trebleFilter) {
+          this.trebleFilter.gain.cancelScheduledValues(now);
+          this.trebleFilter.gain.setValueAtTime(this.trebleFilter.gain.value, now);
+          this.trebleFilter.gain.linearRampToValueAtTime(trebleGain, now + 0.05);
+        }
+      } catch (e) {
+        if (this.bassFilter) this.bassFilter.gain.value = bassGain;
+        if (this.midFilter) this.midFilter.gain.value = midGain;
+        if (this.trebleFilter) this.trebleFilter.gain.value = trebleGain;
+      }
+    }
   }
 
   public applyPreset(preset: 'flat' | 'bass' | 'vocal' | 'cinema' | 'treble' | 'dialogue') {
@@ -293,8 +331,14 @@ export class AudioEngine {
   }
 
   public close() {
-    if (this.ctx) {
-      this.ctx.close();
+    try {
+      if (this.ctx && this.ctx.state !== 'closed') {
+        this.ctx.close().catch(console.warn);
+      }
+      AudioEngine.instanceMap.delete(this.videoElement);
+      this.isInitialized = false;
+    } catch (e) {
+      console.warn('Error closing AudioEngine:', e);
     }
   }
 }

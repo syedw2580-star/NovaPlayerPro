@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SubtitleCue, VideoItem, MediaSubtitleTrack } from '../types';
 import { parseSubtitles } from '../utils/subtitleParser';
 import { Upload, Plus, Trash2, Clock, Edit3, HelpCircle, Save, MessageSquare } from 'lucide-react';
@@ -19,7 +19,8 @@ interface SubtitleManagerProps {
   subtitlePosition: number; // in percentage from bottom (e.g. 10%)
   setSubtitlePosition: (pos: number) => void;
   onSeek: (time: number) => void;
-  currentTime: number;
+  currentTime?: number;
+  videoRef?: React.RefObject<HTMLVideoElement | null>;
 }
 
 function SubtitleManager({
@@ -37,8 +38,20 @@ function SubtitleManager({
   subtitlePosition,
   setSubtitlePosition,
   onSeek,
-  currentTime,
+  currentTime: propCurrentTime,
+  videoRef,
 }: SubtitleManagerProps) {
+  const [localTime, setLocalTime] = useState<number>(propCurrentTime ?? 0);
+
+  useEffect(() => {
+    const video = videoRef?.current;
+    if (!video) return;
+    const handleTime = () => setLocalTime(video.currentTime);
+    video.addEventListener('timeupdate', handleTime);
+    return () => video.removeEventListener('timeupdate', handleTime);
+  }, [videoRef]);
+
+  const activeTime = propCurrentTime !== undefined ? propCurrentTime : localTime;
   const [rawText, setRawText] = useState<string>('');
   const [showRawEditor, setShowRawEditor] = useState<boolean>(false);
   
@@ -448,7 +461,7 @@ function SubtitleManager({
                 filteredCues.map((cue, index) => {
                   const shiftStart = cue.startTime + subtitleDelay;
                   const shiftEnd = cue.endTime + subtitleDelay;
-                  const isActive = currentTime >= shiftStart && currentTime <= shiftEnd;
+                  const isActive = activeTime >= shiftStart && activeTime <= shiftEnd;
 
                   return (
                     <div
