@@ -837,10 +837,8 @@ export default function App() {
         <section 
           id="sidebar-commands-dock" 
           className={`w-full ${
-            sidebarWidth === 'wide' 
-              ? 'lg:w-[600px] xl:w-[680px] 2xl:w-[780px]' 
-              : 'lg:w-[460px] xl:w-[500px] 2xl:w-[560px]'
-          } bg-black/25 flex flex-col flex-shrink-0 border-t lg:border-t-0 border-white/10 flex-1 lg:h-full transition-all duration-200`}
+            sidebarWidth === 'wide' ? 'sidebar-dock-wide' : 'sidebar-dock-normal'
+          } bg-black/25 flex flex-col border-t lg:border-t-0 border-white/10 flex-1 lg:flex-none lg:h-full transition-[width,min-width,max-width,flex] duration-200 overflow-hidden`}
         >
           
           {/* TAB SELECTION STRIP */}
@@ -884,8 +882,12 @@ export default function App() {
             <button
               id="sidebar-width-toggle-btn"
               onClick={() => setSidebarWidth(prev => prev === 'normal' ? 'wide' : 'normal')}
-              className="hidden lg:flex items-center gap-1 px-3 py-2 text-white/70 hover:text-yellow-400 hover:bg-white/10 transition border-l border-white/10 font-mono text-[11px] font-bold"
-              title={sidebarWidth === 'wide' ? 'Reset sidebar width' : 'Expand sidebar width'}
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 transition border-l border-white/10 font-mono text-[11px] font-bold ${
+                sidebarWidth === 'wide'
+                  ? 'bg-yellow-400/20 text-yellow-400 border-b-2 border-b-yellow-400'
+                  : 'text-white/70 hover:text-yellow-400 hover:bg-white/10'
+              }`}
+              title={sidebarWidth === 'wide' ? 'Compact sidebar width (440px)' : 'Expand sidebar width (660px)'}
             >
               {sidebarWidth === 'wide' ? (
                 <>

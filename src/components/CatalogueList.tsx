@@ -109,10 +109,10 @@ function CatalogueList({
             <button
               id="local-media-uploader-btn"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1.5 bg-yellow-400 text-black rounded text-xs font-bold hover:bg-yellow-300 transition flex items-center gap-1"
+              className="px-3 py-1.5 bg-yellow-400 text-black rounded text-xs font-bold hover:bg-yellow-300 transition flex items-center gap-1.5 shadow-sm"
             >
-              <Plus size={13} />
-              + Add Video File
+              <Plus size={14} className="stroke-[2.5]" />
+              <span>Add Video File</span>
             </button>
           </div>
           <input
@@ -284,7 +284,7 @@ function CatalogueList({
               placeholder="Search library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 pl-8 pr-3 py-1.5 border border-white/15 rounded text-xs placeholder-white/40 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-white"
+              className="w-full h-8 bg-white/5 pl-8 pr-3 border border-white/15 rounded text-xs placeholder-white/40 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-white"
             />
           </div>
 
@@ -293,7 +293,7 @@ function CatalogueList({
             id="category-filter-select"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="bg-white/10 border border-white/20 px-2 py-1.5 rounded text-xs font-mono text-white/90 hover:text-white focus:outline-none font-semibold cursor-pointer"
+            className="h-8 bg-white/10 border border-white/20 px-2.5 rounded text-xs font-mono text-white/90 hover:text-white focus:outline-none font-semibold cursor-pointer"
           >
             {categories.map(cat => (
               <option key={cat} value={cat} className="bg-black text-white">{cat}</option>
@@ -345,7 +345,7 @@ function CatalogueList({
                   </div>
 
                   {/* Body Info */}
-                  <div className="flex-1 min-w-0 pr-10">
+                  <div className="flex-1 min-w-0 pr-16">
                     <button
                       onClick={() => onSelectVideo(video)}
                       className={`block font-bold text-xs text-left w-full truncate cursor-pointer transition ${
@@ -373,11 +373,11 @@ function CatalogueList({
                   </div>
 
                   {/* Actions Area */}
-                  <div className="absolute right-2 top-2.5 flex items-center gap-1 text-white/30">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 text-white/50">
                     {/* Add to playlist controls */}
                     <div className="relative">
                       {addingToPlaylistVideoId === video.id ? (
-                        <div className="absolute right-0 top-0 bg-black/95 border border-white/10 rounded p-2.5 shadow-2xl z-20 min-w-[140px] space-y-1.5 text-xs text-white">
+                        <div className="absolute right-0 top-6 bg-black/95 border border-white/10 rounded p-2.5 shadow-2xl z-20 min-w-[140px] space-y-1.5 text-xs text-white">
                           <span className="block font-bold pb-1 text-white/60">Target Playlist:</span>
                           {playlists.length === 0 ? (
                             <span className="block text-[11px] text-white/40">Create a playlist first.</span>
@@ -413,19 +413,19 @@ function CatalogueList({
                       ) : null}
                       <button
                         onClick={() => setAddingToPlaylistVideoId(video.id)}
-                        className="hover:text-yellow-400 p-1 rounded transition"
+                        className="hover:text-yellow-400 p-1 rounded hover:bg-white/10 transition"
                         title="Add to a playlist"
                       >
-                        <ListMusic size={13} />
+                        <ListMusic size={14} />
                       </button>
                     </div>
 
                     <button
                       onClick={() => onDeleteVideo(video.id)}
-                      className="hover:text-red-400 p-1 rounded transition"
+                      className="hover:text-red-400 p-1 rounded hover:bg-red-500/15 transition"
                       title="Remove from Library"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

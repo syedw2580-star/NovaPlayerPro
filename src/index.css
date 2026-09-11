@@ -51,3 +51,20 @@
   }
 }
 
+/* Sidebar Dock Sizing for Desktop */
+@media (min-width: 1024px) {
+  .sidebar-dock-normal {
+    width: 440px !important;
+    min-width: 440px !important;
+    max-width: 440px !important;
+    flex: 0 0 440px !important;
+  }
+  .sidebar-dock-wide {
+    width: 660px !important;
+    min-width: 660px !important;
+    max-width: 660px !important;
+    flex: 0 0 660px !important;
+  }
+}
+
+

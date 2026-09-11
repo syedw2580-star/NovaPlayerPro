@@ -78,9 +78,9 @@ function BookmarksTab({
                   <div className="flex items-center gap-3 min-w-0 flex-1 pr-3">
                     <button
                       onClick={() => onSeek(bk.time)}
-                      className="flex items-center gap-1 font-mono text-[10px] bg-yellow-400/10 border border-yellow-400 text-yellow-500 px-1.5 py-0.5 rounded font-bold hover:bg-yellow-400 hover:text-black transition flex-shrink-0"
+                      className="flex items-center gap-1 font-mono text-[10px] bg-yellow-400/10 border border-yellow-400 text-yellow-400 px-1.5 py-0.5 rounded font-bold hover:bg-yellow-400 hover:text-black transition flex-shrink-0"
                     >
-                      <Clock size={10} className="text-yellow-500" />
+                      <Clock size={10} className="text-yellow-400" />
                       <span>{formatSeconds(bk.time)}</span>
                     </button>
                     <span 
@@ -121,7 +121,7 @@ function BookmarksTab({
             
             {shortcuts.map((sc, i) => (
               <div key={i} className="grid grid-cols-12 items-center text-[11px] py-1">
-                <span className="col-span-5 font-mono text-yellow-450 font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 w-fit text-[10px]">
+                <span className="col-span-5 font-mono text-yellow-400 font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 w-fit text-[10px]">
                   {sc.key}
                 </span>
                 <span className="col-span-7 text-white/90 font-medium">
@@ -133,7 +133,7 @@ function BookmarksTab({
         </div>
 
         {/* Custom video-player pro tip */}
-        <div className="bg-yellow-400/5 border border-yellow-400/20 p-3 rounded space-y-1.5 text-[11px] text-white/50">
+        <div className="bg-yellow-400/5 border border-yellow-400/20 p-3 rounded space-y-1.5 text-[11px] text-white/70">
           <span className="font-bold text-yellow-400 flex items-center gap-1 uppercase tracking-widest text-[9px]">
             <Sparkles size={11} />
             Feature-Rich Design Tip

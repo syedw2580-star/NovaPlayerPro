@@ -1441,9 +1441,9 @@ export default function VideoPlayer({
             </div>
 
             {/* MIDDLE DECK: COMPACT SELECTORS & LOOP BUTTONS */}
-            <div className="flex items-center gap-1 flex-shrink min-w-0 overflow-hidden">
+            <div className="flex items-center gap-1.5 flex-shrink min-w-0 overflow-x-auto scrollbar-none py-0.5">
               {/* Playback speed */}
-              <div className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded px-1 py-0.5 transition" title="Playback Speed">
+              <div className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded px-1 py-0.5 transition flex-shrink-0" title="Playback Speed">
                 <select
                   id="playback-speed-select"
                   value={playbackSpeed}
@@ -1464,7 +1464,7 @@ export default function VideoPlayer({
               </div>
 
               {/* Aspect Ratio */}
-              <div className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded px-1 py-0.5 transition" title="Aspect Ratio">
+              <div className="flex items-center bg-white/5 hover:bg-white/10 border border-white/10 rounded px-1 py-0.5 transition flex-shrink-0" title="Aspect Ratio">
                 <select
                   id="aspect-ratio-selector"
                   value={videoAspectRatio}
@@ -1481,7 +1481,7 @@ export default function VideoPlayer({
 
               {/* Audio Track Selector (VLC style) */}
               {audioTracks.length > 0 && (
-                <div className="flex items-center gap-0.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded px-1 py-0.5 transition" title="Audio Track (Hotkey: B)">
+                <div className="flex items-center gap-0.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded px-1 py-0.5 transition flex-shrink-0" title="Audio Track (Hotkey: B)">
                   <Headphones size={10} className="text-white/50 flex-shrink-0" />
                   <select
                     id="audio-track-selector"
@@ -1498,7 +1498,7 @@ export default function VideoPlayer({
                         });
                       }
                     }}
-                    className="bg-transparent text-white text-[10px] font-semibold focus:outline-none cursor-pointer font-mono max-w-[70px] sm:max-w-[85px] truncate"
+                    className="bg-transparent text-white text-[10px] font-semibold focus:outline-none cursor-pointer font-mono max-w-[90px] sm:max-w-[130px] md:max-w-[170px] truncate"
                   >
                     {audioTracks.map((trk) => (
                       <option key={trk.id} value={trk.id} className="bg-zinc-900 text-white">
@@ -1511,7 +1511,7 @@ export default function VideoPlayer({
 
               {/* Subtitle Track Selector (VLC style) */}
               {subtitleTracks.length > 0 && (
-                <div className={`flex items-center gap-0.5 border rounded px-1 py-0.5 transition ${
+                <div className={`flex items-center gap-0.5 border rounded px-1 py-0.5 transition flex-shrink-0 ${
                   activeSubtitleTrackId !== 'off' && cues.length > 0 ? 'bg-yellow-400/15 border-yellow-400/40 text-yellow-300 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
                 }`} title="Subtitle Track (Hotkey: S)">
                   <MessageSquare size={10} className="text-yellow-400 flex-shrink-0" />
@@ -1528,7 +1528,7 @@ export default function VideoPlayer({
                         timestamp: Date.now()
                       });
                     }}
-                    className="bg-transparent text-white text-[10px] font-semibold focus:outline-none cursor-pointer font-mono max-w-[70px] sm:max-w-[85px] truncate"
+                    className="bg-transparent text-white text-[10px] font-semibold focus:outline-none cursor-pointer font-mono max-w-[90px] sm:max-w-[130px] md:max-w-[170px] truncate"
                   >
                     <option value="off" className="bg-zinc-900 text-red-400">Disable Subs</option>
                     {subtitleTracks.map((trk) => (
