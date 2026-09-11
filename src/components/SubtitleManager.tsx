@@ -186,7 +186,7 @@ function SubtitleManager({
               <span className="font-bold text-yellow-400 flex items-center gap-1">
                 Media Tracks ({subtitleTracks.length} available):
               </span>
-              <span className="text-white/40 text-[9px]">VLC Multi-Track</span>
+              <span className="text-white/80 text-[10px] font-mono font-semibold bg-white/10 px-1.5 py-0.5 rounded">Multi-Track</span>
             </div>
 
             {/* Dropdown Track Selector */}
@@ -381,10 +381,10 @@ function SubtitleManager({
           <div id="cues-list-viewer" className="space-y-3">
             {/* Quick Add Cue Row */}
             <div className="bg-white/5 p-3 rounded border border-white/10 space-y-2.5">
-              <span className="text-[10px] text-yellow-500 font-bold tracking-wider uppercase block">Inject Custom Cue</span>
+              <span className="text-[10px] text-yellow-400 font-bold tracking-wider uppercase block">Inject Custom Cue</span>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[9px] text-white/40 uppercase font-bold tracking-wider block mb-1">Start (Seconds or S:MS)</label>
+                  <label className="text-[10px] text-white/80 uppercase font-bold tracking-wider block mb-1">Start (Seconds or S:MS)</label>
                   <input
                     id="new-sub-start"
                     type="text"
@@ -394,7 +394,7 @@ function SubtitleManager({
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] text-white/40 uppercase font-bold tracking-wider block mb-1">End (Seconds or S:MS)</label>
+                  <label className="text-[10px] text-white/80 uppercase font-bold tracking-wider block mb-1">End (Seconds or S:MS)</label>
                   <input
                     id="new-sub-end"
                     type="text"

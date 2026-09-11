@@ -95,14 +95,14 @@ function CatalogueList({
       {/* Upload controls, quick buttons */}
       <div className="p-4 border-b border-white/10 bg-black/40 backdrop-blur-md sticky top-0 z-10 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">
+          <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-wider">
             Media Library
           </h3>
           <div className="flex gap-2">
             <button
               id="add-url-modal-toggle-btn"
               onClick={() => setShowAddUrl(!showAddUrl)}
-              className="px-3 py-1.5 bg-white/5 border border-white/10 rounded text-xs font-medium hover:bg-white/10 text-white transition"
+              className="px-3 py-1.5 bg-white/10 border border-white/20 rounded text-xs font-semibold hover:bg-white/15 text-white transition"
             >
               Add Video URL
             </button>
@@ -130,7 +130,7 @@ function CatalogueList({
         {showAddUrl && (
           <form id="add-video-url-form" onSubmit={submitRemoteUrl} className="p-3 bg-black/90 border border-white/10 rounded space-y-2 text-xs">
             <div className="flex justify-between items-center pb-1">
-              <span className="font-bold text-white/60 uppercase tracking-wider text-[10px]">Stream Remote / Live URL</span>
+              <span className="font-bold text-white/80 uppercase tracking-wider text-[10px]">Stream Remote / Live URL</span>
               <span className="text-[9px] font-mono text-yellow-400">HLS .m3u8 & MP4</span>
             </div>
             <div className="space-y-1.5">
@@ -140,7 +140,7 @@ function CatalogueList({
                 placeholder="Stream / Video Title..."
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded p-1.5 focus:outline-none focus:border-yellow-400 text-xs font-mono"
+                className="w-full bg-white/5 border border-white/10 text-white placeholder-white/40 rounded p-1.5 focus:outline-none focus:border-yellow-400 text-xs font-mono"
                 required
               />
               <input
@@ -149,11 +149,11 @@ function CatalogueList({
                 placeholder="Live stream URL (https://... .m3u8, .mp4, .webm)"
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded p-1.5 focus:outline-none focus:border-yellow-400 text-xs font-mono"
+                className="w-full bg-white/5 border border-white/10 text-white placeholder-white/40 rounded p-1.5 focus:outline-none focus:border-yellow-400 text-xs font-mono"
                 required
               />
               <div className="flex items-center gap-1.5 pt-0.5">
-                <span className="text-[9px] text-white/40 font-mono">Quick Live Test:</span>
+                <span className="text-[9px] text-white/60 font-mono">Quick Live Test:</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -172,7 +172,7 @@ function CatalogueList({
                 placeholder="Category tag (e.g. Live Streams, Movies)"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded p-1.5 focus:outline-none focus:border-yellow-400 text-xs"
+                className="w-full bg-white/5 border border-white/10 text-white placeholder-white/40 rounded p-1.5 focus:outline-none focus:border-yellow-400 text-xs"
               />
             </div>
             <div className="flex justify-end gap-2 pt-1">
@@ -196,7 +196,7 @@ function CatalogueList({
         {/* Playlists and Catalog selection */}
         <div className="space-y-1.5 pt-1">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Filter Source / Playlists</span>
+            <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Filter Source / Playlists</span>
             <button
               id="show-add-playlist-modal-btn"
               onClick={() => setShowAddPlaylist(!showAddPlaylist)}
@@ -244,19 +244,19 @@ function CatalogueList({
               className={`px-3 py-1 rounded border transition whitespace-nowrap font-medium text-[11px] ${
                 activePlaylistId === null
                   ? 'bg-yellow-400/10 border-yellow-400 text-yellow-400'
-                  : 'bg-white/5 border-white/10 hover:border-white/20 text-white/60 hover:text-white'
+                  : 'bg-white/10 border-white/20 hover:border-white/30 text-white/80 hover:text-white'
               }`}
             >
               All Library
             </button>
             {playlists.map((pl) => (
-              <div key={pl.id} className="flex gap-0.5 items-center bg-white/5 rounded border border-white/15 pr-1 hover:border-white/30 transition">
+              <div key={pl.id} className="flex gap-0.5 items-center bg-white/10 rounded border border-white/20 pr-1 hover:border-white/30 transition">
                 <button
                   onClick={() => setActivePlaylistId(pl.id)}
                   className={`px-2.5 py-1 text-[11px] transition whitespace-nowrap font-semibold ${
                     activePlaylistId === pl.id
                       ? 'text-yellow-400 font-bold'
-                      : 'text-white/60 hover:text-white'
+                      : 'text-white/80 hover:text-white'
                   }`}
                 >
                   📁 {pl.name} ({pl.videoIds.length})
@@ -277,14 +277,14 @@ function CatalogueList({
         <div className="flex gap-2">
           {/* Lookup Input */}
           <div className="relative flex-1">
-            <Search size={13} className="absolute left-2.5 top-2.5 text-white/40" />
+            <Search size={13} className="absolute left-2.5 top-2.5 text-white/60" />
             <input
               id="library-search-input"
               type="text"
               placeholder="Search library..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 pl-8 pr-3 py-1.5 border border-white/10 rounded text-xs placeholder-white/20 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-white"
+              className="w-full bg-white/5 pl-8 pr-3 py-1.5 border border-white/15 rounded text-xs placeholder-white/40 focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 text-white"
             />
           </div>
 
@@ -293,7 +293,7 @@ function CatalogueList({
             id="category-filter-select"
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="bg-white/5 border border-white/10 px-2 py-1.5 rounded text-xs font-mono text-white/60 hover:text-white focus:outline-none"
+            className="bg-white/10 border border-white/20 px-2 py-1.5 rounded text-xs font-mono text-white/90 hover:text-white focus:outline-none font-semibold cursor-pointer"
           >
             {categories.map(cat => (
               <option key={cat} value={cat} className="bg-black text-white">{cat}</option>
@@ -304,15 +304,15 @@ function CatalogueList({
 
       {/* Video Content list */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest block">
+        <span className="text-xs font-bold text-yellow-400 uppercase tracking-wider block">
           Matching Media ({displayedVideos.length})
         </span>
 
         {displayedVideos.length === 0 ? (
-          <div className="text-center py-10 text-white/40 space-y-2">
-            <Film size={24} className="mx-auto text-white/10" />
-            <p className="text-xs">No matching videos in library filter.</p>
-            <p className="text-[10px] text-white/30">Drag files here, or link external direct MP4 clips.</p>
+          <div className="text-center py-10 text-white/60 space-y-2">
+            <Film size={24} className="mx-auto text-white/30" />
+            <p className="text-xs font-medium">No matching videos in library filter.</p>
+            <p className="text-[10px] text-white/50">Drag files here, or link external direct MP4 clips.</p>
           </div>
         ) : (
           <div className="space-y-1" id="catalog-videos-grid">
@@ -332,12 +332,12 @@ function CatalogueList({
                   {/* Poster/Thumbnail Area */}
                   <div
                     onClick={() => onSelectVideo(video)}
-                    className="w-12 h-12 bg-black/40 rounded border border-white/10 overflow-hidden relative flex-shrink-0 cursor-pointer flex items-center justify-center group-hover:opacity-95"
+                    className="w-12 h-12 bg-black/40 rounded border border-white/15 overflow-hidden relative flex-shrink-0 cursor-pointer flex items-center justify-center group-hover:opacity-95"
                   >
                     {video.poster ? (
                       <img src={video.poster} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <Film size={14} className="text-white/30" />
+                      <Film size={14} className="text-white/40" />
                     )}
                     <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                       <Play size={14} className="text-white fill-white" />
@@ -349,18 +349,18 @@ function CatalogueList({
                     <button
                       onClick={() => onSelectVideo(video)}
                       className={`block font-bold text-xs text-left w-full truncate cursor-pointer transition ${
-                        isPlaying ? 'text-white' : 'text-white/80 hover:text-white'
+                        isPlaying ? 'text-white' : 'text-white/90 hover:text-white'
                       }`}
                       title={video.title}
                     >
                       {video.title}
                     </button>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-white/40 font-medium">
-                      <span className="bg-white/5 text-white/60 px-1 py-0.2 rounded font-mono">
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-white/70 font-medium">
+                      <span className="bg-white/10 text-white/90 px-1.5 py-0.2 rounded font-mono font-semibold">
                         {video.category || 'Standard'}
                       </span>
                       <span>•</span>
-                      <span>
+                      <span className="text-white/80">
                         {video.duration ? `${Math.floor(video.duration / 60)}m ${Math.floor(video.duration % 60)}s` : 'Stream'}
                       </span>
                       {isCustomFile && (

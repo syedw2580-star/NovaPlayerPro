@@ -1184,13 +1184,15 @@ export default function VideoPlayer({
           )}
         </div>
       ) : (
-        <div id="no-video-loaded-card" className="flex flex-col items-center justify-center text-white/40 space-y-4 p-8 text-center max-w-md">
-          <div className="p-4 bg-white/5 border border-white/10 rounded-full animate-pulse text-yellow-500 shadow-xl shadow-yellow-500/10">
-            <Tv size={42} />
+        <div id="no-video-loaded-card" className="flex flex-col items-center justify-center space-y-3.5 p-6 text-center max-w-sm">
+          <div className="p-3.5 bg-yellow-400/10 border border-yellow-400/30 rounded-2xl text-yellow-400 shadow-xl shadow-yellow-500/10">
+            <Tv size={34} />
           </div>
           <div className="space-y-1">
-            <h4 className="text-white font-bold text-sm uppercase tracking-widest">No Media Loaded</h4>
-            <p className="text-xs text-white/60">Select a premium Blender cinematic stream, upload your personal video formats, or drag a clip straight to the player.</p>
+            <h4 className="text-white font-bold text-sm tracking-wide uppercase">No Media Selected</h4>
+            <p className="text-xs text-white/80 leading-relaxed font-medium">
+              Choose a video from your library on the right, or drop any MP4, MKV, or subtitles here.
+            </p>
           </div>
         </div>
       )}
@@ -1220,8 +1222,8 @@ export default function VideoPlayer({
       {showControls && activeVideo && (
         <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-4 flex items-center justify-between z-30 transition-all duration-300">
           <div className="flex items-center gap-2">
-            <span className="bg-yellow-400 text-black px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest font-mono">
-              Live Decoder
+            <span className="bg-yellow-400 text-black px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider font-mono">
+              Now Playing
             </span>
             <h2 className="text-white font-bold text-xs truncate max-w-sm md:max-w-md">
               {activeVideo.title}
@@ -1279,8 +1281,8 @@ export default function VideoPlayer({
             <span className="text-white/40">Cues parsed:</span>
             <span className="text-white/80">{cues.length} tracks</span>
 
-            <span className="text-white/40">Renderer Mode:</span>
-            <span className="text-emerald-400 font-bold">GPU Overlay</span>
+            <span className="text-white/70">Renderer:</span>
+            <span className="text-emerald-400 font-bold">Hardware Accelerated</span>
           </div>
         </div>
       )}

@@ -22,13 +22,14 @@ import BookmarksTab from './components/BookmarksTab';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Icons
-import { Film, List as ListIcon, Subtitles, Bookmark as BookmarkIcon, Github, Laptop, Sparkles, HelpCircle, HardDriveDownload } from 'lucide-react';
+import { Film, List as ListIcon, Subtitles, Bookmark as BookmarkIcon, Github, Laptop, Sparkles, HelpCircle, HardDriveDownload, Maximize2, Minimize2 } from 'lucide-react';
 
 export default function App() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [activeVideo, setActiveVideo] = useState<VideoItem | null>(null);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState<'normal' | 'wide'>('normal');
 
   // Subtitle cues & multi-track streams state
   const [cues, setCues] = useState<SubtitleCue[]>([]);
@@ -730,13 +731,13 @@ export default function App() {
       {/* DRAG AND DROP HIGH OVERLAY INDICATOR */}
       {isDragging && (
         <div id="drag-overlay" className="absolute inset-0 bg-yellow-400/10 backdrop-blur-md border-[3px] border-dashed border-yellow-400 z-50 flex flex-col items-center justify-center animate-fade-in pointer-events-none">
-          <div className="bg-black/95 p-6 rounded-2xl border border-yellow-400 max-w-sm text-center shadow-2xl flex flex-col items-center gap-3">
-            <span className="p-3 bg-yellow-400/10 rounded-full text-yellow-400 animate-bounce">
-              <HardDriveDownload size={32} />
+          <div className="bg-black/95 p-5 rounded-2xl border border-yellow-400 max-w-xs text-center shadow-2xl flex flex-col items-center gap-2.5">
+            <span className="p-2.5 bg-yellow-400/15 rounded-full text-yellow-400 animate-bounce">
+              <HardDriveDownload size={28} />
             </span>
-            <h3 className="text-yellow-400 font-bold text-base tracking-wide uppercase">Mount Media</h3>
-            <p className="text-xs text-white/60">
-              Release to instantly mount your local video files (MP4, MKV, WebM) or subtitles document track (SRT, VTT).
+            <h3 className="text-yellow-400 font-bold text-sm tracking-wider uppercase">Mount Media</h3>
+            <p className="text-xs text-white/80 font-medium">
+              Drop your video files (MP4, MKV, WebM) or subtitles (SRT, VTT) here.
             </p>
           </div>
         </div>
@@ -755,15 +756,35 @@ export default function App() {
           </div>
         </div>
 
-        {/* Quick status information metrics badges */}
-        <div className="hidden sm:flex items-center space-x-6 text-xs text-white/40 font-mono tracking-widest uppercase">
-          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1 rounded-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            <span>Decoder: 200% Web Audio Node</span>
-          </div>
-          <div>
-            Render Mode: 10-Bit HDR
-          </div>
+        {/* Authentic, high-visibility real-time media & audio indicators */}
+        <div className="hidden sm:flex items-center space-x-3 text-xs font-mono">
+          {activeVideo ? (
+            <>
+              <div className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-md text-emerald-400 font-semibold shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span>Audio DSP Active</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 border border-white/20 px-3 py-1 rounded-md text-white font-semibold shadow-sm">
+                <span className="text-yellow-400 font-bold">{audioTracks.length} Audio</span>
+                <span className="text-white/40">•</span>
+                <span className="text-yellow-400 font-bold">{subtitleTracks.length} Subs</span>
+              </div>
+              <div className="hidden md:flex items-center bg-white/10 border border-white/20 px-3 py-1 rounded-md text-white font-semibold">
+                <span>{activeVideo.file ? 'Local Media' : activeVideo.url.includes('.m3u8') ? 'HLS Live' : 'Web Stream'}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-md text-emerald-400 font-semibold shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span>Player Engine Ready</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 border border-white/20 px-3 py-1 rounded-md text-white font-semibold shadow-sm">
+                <span className="text-yellow-400 font-bold">{videos.length}</span>
+                <span>Videos in Library</span>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
@@ -771,7 +792,7 @@ export default function App() {
       <main id="cinema-desk-grid" className="flex-1 flex flex-col lg:flex-row min-h-0 relative overflow-hidden bg-black/25">
         
         {/* LEFT / MAIN CELL: DEEP CONSOLE VIDEO MAIN SCREEN */}
-        <section id="cinema-screens-main-cell" className="flex-1 min-w-0 bg-black flex items-center justify-center relative border-r border-white/10 h-[50vh] lg:h-full">
+        <section id="cinema-screens-main-cell" className="flex-1 min-w-0 bg-black flex items-center justify-center relative border-r border-white/10 h-[38vh] sm:h-[42vh] lg:h-full">
           <ErrorBoundary fallbackTitle="Cinema Player Engine Exception">
             <VideoPlayer
               userVideoRef={userVideoRef}
@@ -813,7 +834,14 @@ export default function App() {
         </section>
 
         {/* RIGHT / COMMAND SIDEBAR WORKSPACE DECK */}
-        <section id="sidebar-commands-dock" className="w-full lg:w-[350px] bg-black/20 flex flex-col flex-shrink-0 border-t lg:border-t-0 border-white/10 h-[50vh] lg:h-full">
+        <section 
+          id="sidebar-commands-dock" 
+          className={`w-full ${
+            sidebarWidth === 'wide' 
+              ? 'lg:w-[600px] xl:w-[680px] 2xl:w-[780px]' 
+              : 'lg:w-[460px] xl:w-[500px] 2xl:w-[560px]'
+          } bg-black/25 flex flex-col flex-shrink-0 border-t lg:border-t-0 border-white/10 flex-1 lg:h-full transition-all duration-200`}
+        >
           
           {/* TAB SELECTION STRIP */}
           <nav id="sidebar-tab-strip" className="flex bg-black/40 border-b border-white/10 flex-shrink-0 text-xs">
@@ -823,7 +851,7 @@ export default function App() {
               className={`flex-1 py-3 text-center uppercase tracking-wider font-bold transition border-b-2 flex items-center justify-center gap-1.5 ${
                 activeTab === 'catalogue'
                   ? 'border-yellow-400 text-yellow-400 bg-white/5'
-                  : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'
+                  : 'border-transparent text-white/75 hover:text-white hover:bg-white/10'
               }`}
             >
               <Film size={14} />
@@ -835,7 +863,7 @@ export default function App() {
               className={`flex-1 py-3 text-center uppercase tracking-wider font-bold transition border-b-2 flex items-center justify-center gap-1.5 ${
                 activeTab === 'subtitles'
                   ? 'border-yellow-400 text-yellow-400 bg-white/5'
-                  : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'
+                  : 'border-transparent text-white/75 hover:text-white hover:bg-white/10'
               }`}
             >
               <Subtitles size={14} />
@@ -847,11 +875,29 @@ export default function App() {
               className={`flex-1 py-3 text-center uppercase tracking-wider font-bold transition border-b-2 flex items-center justify-center gap-1.5 ${
                 activeTab === 'bookmarks'
                   ? 'border-yellow-400 text-yellow-400 bg-white/5'
-                  : 'border-transparent text-white/40 hover:text-white hover:bg-white/5'
+                  : 'border-transparent text-white/75 hover:text-white hover:bg-white/10'
               }`}
             >
               <BookmarkIcon size={14} />
               Scenes ({bookmarks.filter(b => b.videoId === activeVideo?.id).length})
+            </button>
+            <button
+              id="sidebar-width-toggle-btn"
+              onClick={() => setSidebarWidth(prev => prev === 'normal' ? 'wide' : 'normal')}
+              className="hidden lg:flex items-center gap-1 px-3 py-2 text-white/70 hover:text-yellow-400 hover:bg-white/10 transition border-l border-white/10 font-mono text-[11px] font-bold"
+              title={sidebarWidth === 'wide' ? 'Reset sidebar width' : 'Expand sidebar width'}
+            >
+              {sidebarWidth === 'wide' ? (
+                <>
+                  <Minimize2 size={13} />
+                  <span>Compact</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 size={13} />
+                  <span>Expand</span>
+                </>
+              )}
             </button>
           </nav>
 
