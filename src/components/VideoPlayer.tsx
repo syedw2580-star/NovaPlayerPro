@@ -625,7 +625,7 @@ export default function VideoPlayer({
   };
 
   const toggleBooster300 = () => {
-    const newVol = volumeBoost > 100 ? 100 : 400;
+    const newVol = volumeBoost > 100 ? 100 : 300;
     setIsAudioEngineEnabled(true);
     setIsSmartBoostEnabled(true);
     setVolumeBoost(newVol);
@@ -2062,7 +2062,7 @@ export default function VideoPlayer({
 
       {/* Keyboard Shortcuts Pro Modal Overlay */}
       {showShortcutsModal && (
-        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div id="keyboard-shortcuts-reference-modal" className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-white/15 rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4 text-white">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">

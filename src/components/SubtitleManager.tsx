@@ -148,7 +148,7 @@ function SubtitleManager({
       {/* Upload and quick tools header (compact, non-overflowing) */}
       <div className="p-3 border-b border-white/10 bg-black/40 backdrop-blur-md flex-shrink-0 space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest flex items-center gap-1.5">
+          <h3 className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-1.5">
             <MessageSquare size={13} />
             Subtitle Workspace
           </h3>
@@ -449,7 +449,7 @@ function SubtitleManager({
             )}
 
             {/* Cue Cards */}
-            <div className="space-y-1">
+            <div id="subtitle-cues-list" className="space-y-1">
               {filteredCues.length === 0 ? (
                 <div className="text-center py-8 text-white/40 space-y-2">
                   <p className="text-xs">{searchQuery ? `No subtitles matching "${searchQuery}"` : 'No subtitles loaded for this video.'}</p>
