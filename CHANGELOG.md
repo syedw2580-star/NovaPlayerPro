@@ -1,29 +1,18 @@
-﻿# Nova Player Pro - Version Changelog
+﻿# Changelog
 
-## v1.1.0 - UI Overhaul & Stream Demuxing Fixes
+## v1.1.0 - UI & Usability Improvements
 
-### 🛠️ Subtitle & Audio Track Switching
-- **Demuxing & Track Switching**: Fixed subtitle and audio track switching across different MKV and MP4 files so switching tracks actually applies instantly.
-- **On-Demand Track Parsing**: Background extraction with `AbortController` cancellation so switching tracks mid-stream doesn't freeze or lag the player.
-- **VLC-Style Selectors**: Widened track dropdowns in the bottom bar (`max-w-[170px]`) so full language and track names are readable without truncation.
+### UI Improvements
+- **Expand / Compact Sidebar**: Fixed the sidebar toggle so clicking Expand / Compact smoothly resizes the sidebar between 440px and 660px.
+- **Header Cleaned Up**: Removed the fake "Decoder: 200%" and "Render Mode: 10-Bit HDR" text; replaced with clean, real-time status indicators.
+- **Compact Standby Box**: Shrunk the oversized drop box to give more screen space to the Catalogue, Yellow Subs, and Bookmarks tabs.
+- **Typography & Readability**: Brightened muted grey text across all tabs for clear visibility.
+- **Button & Control Polish**:
+  - Removed duplicate plus sign on the `+ Add Video File` button.
+  - Aligned search input and category dropdown heights.
+  - Vertically centered video card action buttons with proper spacing.
+  - Widened audio and subtitle track dropdowns so language names fit cleanly without getting cut off.
 
-### 🎨 UI & Layout Overhaul
-- **Working Expand / Compact Dock**: Fixed the broken flexbox layout that prevented the sidebar from resizing. Expand / Compact button now actively toggles sidebar width between `440px` and `660px`.
-- **Removed Gimmicky Telemetry**: Removed the fake "Decoder: 200%" and "Render Mode: 10-Bit HDR" header badges. Replaced with real-time status indicators (active Audio DSP beacon, live audio/sub track counters, stream type).
-- **Compact Standby Card**: Replaced the oversized media drop box with a sleek, compact standby card, freeing up space for the library, subtitle manager, and bookmarks.
-- **Typography & Readability**: Brightened all muted grey text across the Catalogue, Subtitle Manager, and Scenes tabs for high visibility.
-- **Button & Control Alignment**:
-  - Fixed duplicate plus sign on the `+ Add Video File` button.
-  - Aligned search input and category dropdown heights (`h-8`).
-  - Vertically centered video card action buttons (playlist / delete) with proper padding so long titles don't overlap.
-- **Audio Booster**: Fixed the quick boost toggle so it accurately toggles to 300% volume boost.
-
----
-
-## v1.0.0 - Core Player Base
-- Core video player engine with HTML5 and HLS (`.m3u8`) streaming.
-- Web Audio API DSP pipeline (volume boost, dialogue clarity, 5-band EQ presets).
-- Picture adjustments (brightness, contrast, saturation, hue, color presets).
-- Custom Yellow Subtitles engine with timing offset controls.
-- Scene bookmarking and A-B loop points.
-- Offline library saving with IndexedDB.
+### Usability Improvements
+- **Track Switching**: Fixed embedded subtitle and audio track switching so changing tracks applies reliably across different video files.
+- **Audio Booster**: Fixed the quick boost toggle to accurately toggle 300% volume.
