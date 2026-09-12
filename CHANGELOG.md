@@ -1,41 +1,29 @@
-﻿# Changelog
+﻿# Nova Player Pro - Version Changelog
 
-All notable changes to **Nova Player Pro** are documented in this file.
+## v1.1.0 - UI Overhaul & Stream Demuxing Fixes
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### 🛠️ Subtitle & Audio Track Switching
+- **Demuxing & Track Switching**: Fixed subtitle and audio track switching across different MKV and MP4 files so switching tracks actually applies instantly.
+- **On-Demand Track Parsing**: Background extraction with `AbortController` cancellation so switching tracks mid-stream doesn't freeze or lag the player.
+- **VLC-Style Selectors**: Widened track dropdowns in the bottom bar (`max-w-[170px]`) so full language and track names are readable without truncation.
 
----
-
-## [1.1.0] - 2026-09-12
-
-### 🚀 Added
-- **Dynamic Expand / Compact Sidebar**: Added responsive desktop dock resizing between standard compact (`440px`) and wide view (`660px`) with smooth layout animations.
-- **Embedded Audio & Subtitle Track Extraction Engine**: Real-time demuxing and track discovery for MKV and MP4 video containers directly in the browser without server transcoding.
-- **VLC-Style Stream Selectors**: Bottom bar dropdowns with expanded widths displaying full language, track labels, and audio codecs.
-- **Web Audio DSP & Smart Booster (300%)**: Integrated dynamic range compressor and `Math.tanh` soft-clipping limiter to safely amplify quiet local audio up to 300% without digital clipping.
-- **Center Channel Dialogue Boost**: Dedicated vocal presence enhancer with +0dB, +6dB, and +12dB clarity filters.
-- **Live GPU Picture Enhancements**: Real-time controls for brightness, contrast, saturation, hue shift, sepia, and cinematic color presets.
-- **Interactive Pro Shortcuts Guide**: Modal cheat sheet accessible via hotkey (`Shift + ?`) or the player controls bar.
-
-### 🎨 Refined & Improved
-- **Header Telemetry**: Replaced placeholder metrics with authentic, high-visibility beacons (Audio DSP Active, stream counts, stream type).
-- **Typography & Contrast**: Upgraded sub-headers, timestamps, and cue text for enhanced readability across bright and dark backgrounds.
-- **Aligned Controls**: Harmonized search input and category filter heights, eliminated duplicate button icons, and centered video card action icons.
-- **Compact Standby State**: Modernized standby cards and drag-and-drop overlays.
-
-### 🐛 Fixed
-- Fixed desktop flexbox layout sizing collision that prevented sidebar expansion.
-- Fixed booster volume boundary sync between UI toggle and audio gain node.
-- Fixed potential race conditions and memory leaks in Object URL blob lifecycles.
+### 🎨 UI & Layout Overhaul
+- **Working Expand / Compact Dock**: Fixed the broken flexbox layout that prevented the sidebar from resizing. Expand / Compact button now actively toggles sidebar width between `440px` and `660px`.
+- **Removed Gimmicky Telemetry**: Removed the fake "Decoder: 200%" and "Render Mode: 10-Bit HDR" header badges. Replaced with real-time status indicators (active Audio DSP beacon, live audio/sub track counters, stream type).
+- **Compact Standby Card**: Replaced the oversized media drop box with a sleek, compact standby card, freeing up space for the library, subtitle manager, and bookmarks.
+- **Typography & Readability**: Brightened all muted grey text across the Catalogue, Subtitle Manager, and Scenes tabs for high visibility.
+- **Button & Control Alignment**:
+  - Fixed duplicate plus sign on the `+ Add Video File` button.
+  - Aligned search input and category dropdown heights (`h-8`).
+  - Vertically centered video card action buttons (playlist / delete) with proper padding so long titles don't overlap.
+- **Audio Booster**: Fixed the quick boost toggle so it accurately toggles to 300% volume boost.
 
 ---
 
-## [1.0.0] - 2026-08-30
-
-### 🎉 Initial Release
-- Core HTML5 video player with HLS streaming support.
-- Local video and subtitle drag-and-drop mounting.
-- Custom Yellow Subtitles engine with millisecond timing offsets.
-- Scene bookmarking and A-B range looping.
-- Offline IndexedDB media library persistence.
+## v1.0.0 - Core Player Base
+- Core video player engine with HTML5 and HLS (`.m3u8`) streaming.
+- Web Audio API DSP pipeline (volume boost, dialogue clarity, 5-band EQ presets).
+- Picture adjustments (brightness, contrast, saturation, hue, color presets).
+- Custom Yellow Subtitles engine with timing offset controls.
+- Scene bookmarking and A-B loop points.
+- Offline library saving with IndexedDB.
