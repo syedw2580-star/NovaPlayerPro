@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { VideoItem, Playlist } from '../types';
-import { Search, Film, Plus, Play, Music, Trash2, ListMusic, PlusCircle, Check, HelpCircle } from 'lucide-react';
+import { Search, Film, Plus, Play, Music, Trash2, ListMusic, PlusCircle, Check, HelpCircle, Wrench } from 'lucide-react';
 
 interface CatalogueListProps {
   videos: VideoItem[];
@@ -100,16 +100,7 @@ function CatalogueList({
           <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-wider">
             Media Library
           </h3>
-          <div className="flex gap-2">
-            <button
-              id="codec-optimizer-guide-btn"
-              onClick={() => setShowCodecHelp(true)}
-              className="px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs font-semibold hover:bg-white/10 text-white/70 hover:text-white transition flex items-center gap-1"
-              title="Unsupported Video Codec? Transcode guide"
-            >
-              <HelpCircle size={13} className="text-yellow-400" />
-              <span className="hidden sm:inline">Codec Fix</span>
-            </button>
+          <div className="flex items-center gap-2">
             <button
               id="add-url-modal-toggle-btn"
               onClick={() => setShowAddUrl(!showAddUrl)}
@@ -208,14 +199,26 @@ function CatalogueList({
         <div className="space-y-1.5 pt-1">
           <div className="flex justify-between items-center">
             <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Filter Source / Playlists</span>
-            <button
-              id="show-add-playlist-modal-btn"
-              onClick={() => setShowAddPlaylist(!showAddPlaylist)}
-              className="text-[10px] text-yellow-400 hover:text-yellow-300 font-bold uppercase tracking-wider flex items-center gap-0.5 transition"
-            >
-              <PlusCircle size={10} />
-              New Playlist
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                id="codec-optimizer-guide-btn"
+                onClick={() => setShowCodecHelp(true)}
+                className="text-[10px] text-amber-400/90 hover:text-amber-300 font-bold uppercase tracking-wider flex items-center gap-1 transition font-mono"
+                title="Unsupported Video Codec? Standalone transcode helper"
+              >
+                <Wrench size={10} className="text-amber-400" />
+                <span>Codec Fix</span>
+              </button>
+              <span className="text-white/20 select-none">•</span>
+              <button
+                id="show-add-playlist-modal-btn"
+                onClick={() => setShowAddPlaylist(!showAddPlaylist)}
+                className="text-[10px] text-yellow-400 hover:text-yellow-300 font-bold uppercase tracking-wider flex items-center gap-0.5 transition"
+              >
+                <PlusCircle size={10} />
+                New Playlist
+              </button>
+            </div>
           </div>
 
           {showAddPlaylist && (
