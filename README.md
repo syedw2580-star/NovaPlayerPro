@@ -72,6 +72,22 @@ python start_player.py
 
 ---
 
+## 🎬 Universal Video Transcoder & Codec Optimizer (`universal_video.py`)
+
+Browsers natively support H.264 (AVC), WebM (VP8/VP9), and stereo AAC audio. If you load an MKV, AVI, MOV, or exotic video with codecs not natively decodable by browser hardware (e.g. non-standard video streams, unsupported multi-channel formats, or rare subtitle formats), you can run the included Python utility:
+
+```bash
+python universal_video.py
+```
+
+### ⚡ Key Features:
+- **Zero-Setup / Automatic Tool Downloader**: If FFmpeg/FFprobe are not installed on your system PATH, the script automatically downloads and unpacks standalone static binaries into `./tools/` on Windows, macOS, or Linux.
+- **Fast Lossless Remuxing**: If the video stream is already H.264 or compatible MP4, it performs a 0-second direct stream copy without re-encoding quality loss.
+- **Hardware-Friendly Transcoding**: Re-encodes incompatible video tracks to standard H.264 (8-bit yuv420p) and audio to high-fidelity AAC stereo (384k) downmixed for clear dialogue.
+- **Subtitle Stream Extraction**: Automatically converts and embeds SRT, ASS, SSA, and WebVTT subtitle tracks into standard MP4 `mov_text` streams.
+
+---
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19, TypeScript 5.8, Tailwind CSS v4, Lucide Icons

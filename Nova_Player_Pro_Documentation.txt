@@ -1,4 +1,4 @@
-﻿================================================================================
+================================================================================
           NOVA PLAYER PRO — COMPREHENSIVE DOCUMENTATION & ARCHITECTURE
 ================================================================================
 
@@ -98,12 +98,31 @@ Nova Player Pro reads and extracts tracks directly inside the client browser:
     - Pro Keyboard Shortcuts cheat sheet modal (Hotkey: Shift + ?).
 
 --------------------------------------------------------------------------------
-6. COMPETITIVE MATRIX
+6. CODEC COMPATIBILITY & UNIVERSAL VIDEO OPTIMIZER (universal_video.py)
+--------------------------------------------------------------------------------
+  • Browser Codec Support Matrix:
+    - Supported natively: H.264 (AVC) Baseline/Main/High (8-bit), WebM (VP8/VP9), AAC stereo.
+    - Unsupported by standard browsers: 10-bit HEVC/H.265 profiles, AVI/WMV proprietary codecs,
+      AC-3 / E-AC-3 (Dolby Digital) on uncertified environments, and PGS/bitmap subtitles.
+  • Standalone Transcoder Engine (`universal_video.py`):
+    - Automatically checks system PATH for FFmpeg / FFprobe.
+    - If absent, automatically downloads and extracts standalone static binaries to `./tools/`
+      across Windows, macOS, and Linux without requiring admin installation or package managers.
+    - Performs smart stream copying: if the video track is already standard H.264/MP4, it remuxes
+      in 0 seconds without generational quality degradation.
+    - Re-encodes incompatible video tracks to standard H.264 (yuv420p, CRF 22) and downmixes audio
+      streams to universal high-bitrate AAC Stereo (384k).
+    - Preserves embedded text subtitle tracks (SRT, ASS, SSA, WebVTT) by converting them into standard
+      MP4 timed text streams (`mov_text`).
+
+--------------------------------------------------------------------------------
+7. COMPETITIVE MATRIX
 --------------------------------------------------------------------------------
 Feature / Capability                 | Nova Player Pro | Desktop VLC | Standard Web Players
 -------------------------------------------------------------------------------------------
 Zero-Install Single-File Web App     | YES (~952 kB)   | NO (Native) | NO (Heavy Library)
 In-Browser MKV/MP4 Stream Demuxing   | YES             | YES (Native)| NO
+Universal Transcoder + Auto-Tools    | YES (Python)    | NO          | NO
 Web Audio 5.1-to-Stereo Matrix Mixer | YES             | YES (Native)| NO
 300% Booster + Math.tanh Peak Limiter| YES (Clean)     | NO (Distorts| NO
 Live HLS (.m3u8) Playback            | YES             | YES         | Requires Plugins
@@ -112,3 +131,4 @@ Offline IndexedDB Catalogue          | YES             | N/A         | NO
 Dynamic Expand / Compact Dock        | YES             | NO          | NO
 
 ================================================================================
+

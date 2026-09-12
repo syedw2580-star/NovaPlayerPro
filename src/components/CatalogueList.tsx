@@ -45,6 +45,8 @@ function CatalogueList({
   const [showAddPlaylist, setShowAddPlaylist] = useState(false);
   const [playlistName, setPlaylistName] = useState('');
 
+  const [showCodecHelp, setShowCodecHelp] = useState(false);
+
   const [addingToPlaylistVideoId, setAddingToPlaylistVideoId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,6 +101,15 @@ function CatalogueList({
             Media Library
           </h3>
           <div className="flex gap-2">
+            <button
+              id="codec-optimizer-guide-btn"
+              onClick={() => setShowCodecHelp(true)}
+              className="px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs font-semibold hover:bg-white/10 text-white/70 hover:text-white transition flex items-center gap-1"
+              title="Unsupported Video Codec? Transcode guide"
+            >
+              <HelpCircle size={13} className="text-yellow-400" />
+              <span className="hidden sm:inline">Codec Fix</span>
+            </button>
             <button
               id="add-url-modal-toggle-btn"
               onClick={() => setShowAddUrl(!showAddUrl)}
@@ -434,6 +445,64 @@ function CatalogueList({
           </div>
         )}
       </div>
+
+      {/* Codec Fix & Transcoding Guide Modal */}
+      {showCodecHelp && (
+        <div id="codec-optimizer-modal" className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-white/15 rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4 text-white">
+            <div className="flex justify-between items-center border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="text-yellow-400" size={18} />
+                <span className="font-bold text-sm tracking-wider uppercase font-mono">
+                  Unsupported Codec Fix
+                </span>
+              </div>
+              <button
+                onClick={() => setShowCodecHelp(false)}
+                className="text-white/40 hover:text-white text-lg font-bold px-2 py-0.5 rounded hover:bg-white/10"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-white/80 leading-relaxed font-sans">
+              <p>
+                Browsers natively decode <span className="text-white font-bold">H.264 (AVC)</span>, <span className="text-white font-bold">WebM (VP8/VP9)</span>, and <span className="text-white font-bold">AAC Stereo</span>.
+              </p>
+              <p>
+                If your MKV, AVI, or MP4 file has a video or audio stream not decodable by your browser hardware, run the included Python transcoder:
+              </p>
+
+              <div className="bg-black/80 border border-white/10 rounded-lg p-3 font-mono text-[11px] text-yellow-300 space-y-1">
+                <div className="text-white/40 select-none"># In the project terminal:</div>
+                <div className="font-bold">python universal_video.py</div>
+              </div>
+
+              <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-3 text-[11px] space-y-1.5">
+                <div className="font-bold text-yellow-400 uppercase tracking-wider font-mono">⚡ Zero-Setup Tool Auto-Downloader:</div>
+                <div className="text-white/70">
+                  You don't need to manually install FFmpeg or configure environment variables. If FFmpeg is missing, the script will automatically download and unpack the required standalone tools into <code className="text-yellow-300">./tools/</code> for your OS.
+                </div>
+              </div>
+
+              <ul className="list-disc list-inside space-y-1 text-white/70 text-[11px]">
+                <li><span className="text-white font-semibold">Lossless Copy</span>: Compatible video tracks copy instantly in 0 seconds.</li>
+                <li><span className="text-white font-semibold">Hardware Standard</span>: Incompatible video is converted to 8-bit H.264 MP4.</li>
+                <li><span className="text-white font-semibold">Subtitles Preserved</span>: Embedded text tracks are retained.</li>
+              </ul>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowCodecHelp(false)}
+                className="bg-yellow-400 hover:bg-yellow-300 text-black text-xs font-bold px-4 py-1.5 rounded transition"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

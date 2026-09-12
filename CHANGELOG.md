@@ -1,4 +1,12 @@
-﻿# Changelog
+# Changelog
+
+## v1.1.1 - Codec Optimizer & Universal Video Transcoder
+
+### Added
+- **Universal Video Transcoder (`universal_video.py`)**: Included a standalone Python media optimizer script to convert videos with unsupported browser codecs (non-standard video profiles, rare container streams, or exotic multi-channel audio) into standard H.264 MP4 with AAC stereo audio.
+- **Automatic Tool Downloader**: The Python script automatically detects if FFmpeg and FFprobe are present on the system. If missing, it automatically downloads and unpacks standalone static binaries into `./tools/` without needing manual installation or administrative privileges across Windows, macOS, and Linux.
+- **In-App Codec Fix Guide**: Added a `Codec Fix` helper button and modal in the Media Library header, plus automatic codec warning toast suggestions if a loaded video encounters browser decode errors.
+- **Codec Documentation**: Added Section 6 to `Nova_Player_Pro_Documentation.txt` detailing the browser codec support matrix and the zero-install transcoder workflow.
 
 ## v1.1.0 - UI & Usability Improvements
 

@@ -9,3 +9,6 @@ coverage/
 .firebase/
 *.backup.*
 backups/
+tools/
+__pycache__/
+*.pyc

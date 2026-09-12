@@ -875,10 +875,10 @@ export default function VideoPlayer({
     errorStats.lastErrorTime = now;
 
     // Limit consecutive recoveries within 10s window to avoid infinite loops on 0-byte or completely destroyed files
-    if (errorStats.count > 6) {
+    if (errorStats.count > 6 || errCode === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED
       setRecoveryToast({
         visible: true,
-        message: '⚠️ Media stream has severe unrecoverable corruption at current sector.',
+        message: '⚠️ Codec not supported by browser. Run "python universal_video.py" to convert video.',
         timestamp: now
       });
       return;
