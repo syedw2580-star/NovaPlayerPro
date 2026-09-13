@@ -602,6 +602,7 @@ export default function VideoPlayer({
     target = Math.max(0, Math.min(target, duration));
     userVideoRef.current.currentTime = target;
     setCurrentTime(target);
+    audioEngine?.resync();
   };
 
   const handleSeek = (time: number) => {
@@ -610,6 +611,7 @@ export default function VideoPlayer({
     userVideoRef.current.currentTime = time;
     setCurrentTime(time);
     setIsSeeking(false);
+    audioEngine?.resync();
   };
 
   const toggleMute = () => {
@@ -1146,8 +1148,12 @@ export default function VideoPlayer({
                 setIsPlaying(true);
                 clearWatchdog();
                 audioEngine?.resume();
+                audioEngine?.resync();
               }}
-              onPlaying={() => clearWatchdog()}
+              onPlaying={() => {
+                clearWatchdog();
+                audioEngine?.resync();
+              }}
               onPause={() => {
                 setIsPlaying(false);
                 clearWatchdog();

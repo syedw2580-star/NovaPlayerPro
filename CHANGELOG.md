@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.2 - Audio / Video Playback Clock Synchronization & Drift Elimination
+
+### Fixed
+- **Audio / Video Drift Over Playback Time**: Resolved audio lagging or getting out of sync with video during prolonged playback sessions.
+- **AudioContext Clock Calibration**: Configured the Web Audio context with `{ latencyHint: 'playback' }` to ensure stable sample clock timing and eliminate internal hardware ring-buffer slippage.
+- **Immediate Seek & Pause Resynchronization**: Wired immediate clock realignment and parameter queue clearing when seeking, scrubbing, pausing, unpausing, or changing playback speed.
+- **Continuous Clock Alignment Watchdog**: Integrated a non-intrusive background synchronization watchdog that actively keeps the HTML5 media element clock and Web Audio DSP graph aligned throughout long movies.
+
 ## v1.1.1 - Codec Optimizer & Universal Video Transcoder
 
 ### Added

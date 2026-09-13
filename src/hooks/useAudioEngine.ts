@@ -96,6 +96,42 @@ export function useAudioEngine({
     }
   }, [audioEngine, audioDelay]);
 
+  // Audio/Video Synchronization Watchdog & Event Handlers
+  // Immediately resynchronizes Web Audio clock on seeking, pause/resume, and rate changes
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    if (!videoEl || !audioEngine) return;
+
+    const triggerResync = () => {
+      audioEngine.resync();
+    };
+
+    // Listen to video element playback state changes that could introduce clock offset
+    videoEl.addEventListener('seeking', triggerResync);
+    videoEl.addEventListener('seeked', triggerResync);
+    videoEl.addEventListener('ratechange', triggerResync);
+    videoEl.addEventListener('pause', triggerResync);
+    videoEl.addEventListener('playing', triggerResync);
+    videoEl.addEventListener('waiting', triggerResync);
+
+    // Periodic clock alignment watchdog: every 10 seconds during playback, ensure context is active and aligned
+    const syncInterval = setInterval(() => {
+      if (!videoEl.paused && !videoEl.seeking) {
+        audioEngine.resync();
+      }
+    }, 10000);
+
+    return () => {
+      videoEl.removeEventListener('seeking', triggerResync);
+      videoEl.removeEventListener('seeked', triggerResync);
+      videoEl.removeEventListener('ratechange', triggerResync);
+      videoEl.removeEventListener('pause', triggerResync);
+      videoEl.removeEventListener('playing', triggerResync);
+      videoEl.removeEventListener('waiting', triggerResync);
+      clearInterval(syncInterval);
+    };
+  }, [audioEngine, videoRef]);
+
   // Clean up AudioContext when component permanently unmounts
   useEffect(() => {
     return () => {

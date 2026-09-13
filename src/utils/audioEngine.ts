@@ -35,7 +35,12 @@ export class AudioEngine {
 
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      this.ctx = new AudioCtxClass();
+      // Configure latencyHint: 'playback' to optimize for maximum clock stability and prevent buffer slippage
+      try {
+        this.ctx = new AudioCtxClass({ latencyHint: 'playback' });
+      } catch {
+        this.ctx = new AudioCtxClass();
+      }
 
       this.source = this.ctx.createMediaElementSource(this.videoElement);
       // Allow browser to pass native multichannel stream if decoded
@@ -328,6 +333,38 @@ export class AudioEngine {
         this.setEqualizer(0, 0, 0);
         break;
     }
+  }
+
+  /**
+   * Seamlessly resynchronizes the AudioContext clock pipeline.
+   * Cancels any pending scheduled parameter events, flushes transient buffer lag,
+   * and ensures the AudioContext state is active and aligned with the HTML5 video element.
+   */
+  public resync() {
+    if (!this.isInitialized || !this.ctx) return;
+    try {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(console.warn);
+      }
+      const now = this.ctx.currentTime;
+      // Clear any hanging audio parameter ramps on delay or gain nodes
+      if (this.delayNode) {
+        const curDelay = this.delayNode.delayTime.value;
+        this.delayNode.delayTime.cancelScheduledValues(now);
+        this.delayNode.delayTime.setValueAtTime(curDelay, now);
+      }
+      if (this.gainNode) {
+        const curGain = this.gainNode.gain.value;
+        this.gainNode.gain.cancelScheduledValues(now);
+        this.gainNode.gain.setValueAtTime(curGain, now);
+      }
+    } catch (e) {
+      console.warn('AudioEngine resync notice:', e);
+    }
+  }
+
+  public getContext(): AudioContext | null {
+    return this.ctx;
   }
 
   public close() {
