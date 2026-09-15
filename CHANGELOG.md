@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.3 - Universal 7.1 Surround & Multi-Channel Dialogue Clarity
+
+### Fixed
+- **7.1 Surround Sound Dialogue Mixing**: Upgraded multichannel processing to dynamically support 8-channel (7.1) and 6-channel (5.1) audio streams.
+- **ITU-R Downmix Matrix**: Properly routes discrete channels (Front Left/Right, Center dialogue, LFE subwoofer, Side surrounds, and Rear surrounds) to stereo outputs without channel truncation or phase muddiness.
+- **Center Channel Isolation**: Prevents side and rear surround sound effects from bleeding into the dialogue filter, keeping voices crystal clear even during heavy action sequences.
+
 ## v1.1.2 - Audio / Video Playback Clock Synchronization & Drift Elimination
 
 ### Fixed

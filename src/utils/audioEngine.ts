@@ -90,45 +90,66 @@ export class AudioEngine {
       this.delayNode = this.ctx.createDelay(65.0);
       this.delayNode.delayTime.value = 0.0;
 
-      // 5.1 Channel Splitter with graceful stereo fallback
+      // Universal Multichannel Splitter (7.1 / 5.1 with ITU-R downmix matrix to Stereo)
       let isMultichannelRouted = false;
       try {
-        if (this.ctx.destination.maxChannelCount >= 6) {
-          const splitter = this.ctx.createChannelSplitter(6);
-          const merger = this.ctx.createChannelMerger(2);
+        const splitter = this.ctx.createChannelSplitter(8);
+        const merger = this.ctx.createChannelMerger(2);
 
-          this.centerGainL = this.ctx.createGain();
-          this.centerGainR = this.ctx.createGain();
-          this.centerGainL.gain.value = 0.707;
-          this.centerGainR.gain.value = 0.707;
+        // Center / Dialogue Channel Gain (Channel 2)
+        this.centerGainL = this.ctx.createGain();
+        this.centerGainR = this.ctx.createGain();
+        this.centerGainL.gain.value = 0.707;
+        this.centerGainR.gain.value = 0.707;
 
-          this.surroundGainL = this.ctx.createGain();
-          this.surroundGainR = this.ctx.createGain();
-          this.surroundGainL.gain.value = 0.707;
-          this.surroundGainR.gain.value = 0.707;
+        // Side Surrounds (Channels 4 & 5)
+        this.surroundGainL = this.ctx.createGain();
+        this.surroundGainR = this.ctx.createGain();
+        this.surroundGainL.gain.value = 0.707;
+        this.surroundGainR.gain.value = 0.707;
 
-          this.source.connect(splitter);
+        // Rear / Back Surrounds for 7.1 (Channels 6 & 7)
+        const rearGainL = this.ctx.createGain();
+        const rearGainR = this.ctx.createGain();
+        rearGainL.gain.value = 0.707;
+        rearGainR.gain.value = 0.707;
 
-          // Front Left & Right
-          splitter.connect(merger, 0, 0);
-          splitter.connect(merger, 1, 1);
+        // LFE Subwoofer (Channel 3)
+        const lfeGain = this.ctx.createGain();
+        lfeGain.gain.value = 0.5;
 
-          // Center Channel routed to both Left and Right with dialogue gain
-          splitter.connect(this.centerGainL, 2);
-          splitter.connect(this.centerGainR, 2);
-          this.centerGainL.connect(merger, 0, 0);
-          this.centerGainR.connect(merger, 0, 1);
+        this.source.connect(splitter);
 
-          // Surrounds
-          splitter.connect(this.surroundGainL, 4);
-          this.surroundGainL.connect(merger, 0, 0);
+        // Channel 0: Front Left -> Output 0
+        splitter.connect(merger, 0, 0);
+        // Channel 1: Front Right -> Output 1
+        splitter.connect(merger, 1, 1);
 
-          splitter.connect(this.surroundGainR, 5);
-          this.surroundGainR.connect(merger, 0, 1);
+        // Channel 2: Center (Dialogue) -> Output 0 & Output 1 (mono center)
+        splitter.connect(this.centerGainL, 2);
+        splitter.connect(this.centerGainR, 2);
+        this.centerGainL.connect(merger, 0, 0);
+        this.centerGainR.connect(merger, 0, 1);
 
-          merger.connect(this.dialogueFilter);
-          isMultichannelRouted = true;
-        }
+        // Channel 3: LFE (Subwoofer) -> Output 0 & Output 1
+        splitter.connect(lfeGain, 3);
+        lfeGain.connect(merger, 0, 0);
+        lfeGain.connect(merger, 0, 1);
+
+        // Channel 4 & 5: Side Surrounds -> Output 0 & Output 1
+        splitter.connect(this.surroundGainL, 4);
+        splitter.connect(this.surroundGainR, 5);
+        this.surroundGainL.connect(merger, 0, 0);
+        this.surroundGainR.connect(merger, 0, 1);
+
+        // Channel 6 & 7: Rear Surrounds (7.1) -> Output 0 & Output 1
+        splitter.connect(rearGainL, 6);
+        splitter.connect(rearGainR, 7);
+        rearGainL.connect(merger, 0, 0);
+        rearGainR.connect(merger, 0, 1);
+
+        merger.connect(this.dialogueFilter);
+        isMultichannelRouted = true;
       } catch (downmixErr) {
         console.warn('Multichannel downmix setup fallback to stereo:', downmixErr);
       }
