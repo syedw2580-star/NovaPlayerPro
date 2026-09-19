@@ -1030,6 +1030,43 @@ export default function VideoPlayer({
       transform = 'scaleY(2) translateZ(0)';
       transformOrigin = 'center bottom';
     }
+
+    // Explicit aspect ratio and sizing logic
+    let objectFit: React.CSSProperties['objectFit'] = 'contain';
+    let width: string = '100%';
+    let height: string = '100%';
+    let aspectRatio: string | undefined = undefined;
+
+    switch (videoAspectRatio) {
+      case 'fill':
+        objectFit = 'cover';
+        width = '100%';
+        height = '100%';
+        break;
+      case 'stretch':
+        objectFit = 'fill';
+        width = '100%';
+        height = '100%';
+        break;
+      case '16-9':
+        objectFit = 'fill';
+        aspectRatio = '16 / 9';
+        width = 'auto';
+        height = 'auto';
+        break;
+      case '4-3':
+        objectFit = 'fill';
+        aspectRatio = '4 / 3';
+        width = 'auto';
+        height = 'auto';
+        break;
+      case 'fit':
+      default:
+        objectFit = 'contain';
+        width = '100%';
+        height = '100%';
+        break;
+    }
     
     return {
       ...filters,
@@ -1038,6 +1075,12 @@ export default function VideoPlayer({
       willChange: 'transform',
       backfaceVisibility: 'hidden',
       WebkitBackfaceVisibility: 'hidden',
+      objectFit,
+      width,
+      height,
+      maxWidth: '100%',
+      maxHeight: '100%',
+      aspectRatio,
     };
   };
 

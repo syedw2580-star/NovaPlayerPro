@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.4 - Aspect Ratio Sizing & Display Modes Fix
+
+### Fixed
+- **Aspect Ratio Switching (Fit, Fill, Stretch, 16:9, 4:3)**: Fixed aspect ratio modes failing to resize the video correctly. Applied explicit `aspectRatio`, `objectFit`, and adaptive dimension constraints directly to the video element to properly override the native video stream bounds.
+
 ## v1.1.3 - Universal 7.1 Surround & Multi-Channel Dialogue Clarity
 
 ### Fixed
