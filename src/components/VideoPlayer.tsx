@@ -50,6 +50,11 @@ interface VideoPlayerProps {
   dialogueBoost?: number; // in dB (0, 6, 12)
   setDialogueBoost?: (db: number) => void;
   
+  subtitleTracks?: MediaSubtitleTrack[];
+  activeSubtitleTrackId?: string;
+  onSelectSubtitleTrack?: (trackId: string) => void;
+  isExtractingSubtitles?: boolean;
+
   brightness: number; // 50 to 150 (represented as %)
   setBrightness: (val: number) => void;
   contrast: number; // 50 to 150
@@ -91,6 +96,7 @@ export default function VideoPlayer({
   subtitleTracks = [],
   activeSubtitleTrackId = '',
   onSelectSubtitleTrack,
+  isExtractingSubtitles = false,
   brightness,
   setBrightness,
   contrast,
@@ -1561,9 +1567,11 @@ export default function VideoPlayer({
               {/* Subtitle Track Selector (VLC style) */}
               {subtitleTracks.length > 0 && (
                 <div className={`flex items-center gap-0.5 border rounded px-1 py-0.5 transition flex-shrink-0 ${
-                  activeSubtitleTrackId !== 'off' && cues.length > 0 ? 'bg-yellow-400/15 border-yellow-400/40 text-yellow-300 font-bold' : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
+                  activeSubtitleTrackId !== 'off' && (cues.length > 0 || isExtractingSubtitles)
+                    ? 'bg-yellow-400/15 border-yellow-400/40 text-yellow-300 font-bold' 
+                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
                 }`} title="Subtitle Track (Hotkey: S)">
-                  <MessageSquare size={10} className="text-yellow-400 flex-shrink-0" />
+                  <MessageSquare size={10} className={`flex-shrink-0 ${isExtractingSubtitles ? 'text-yellow-400 animate-pulse' : 'text-yellow-400'}`} />
                   <select
                     id="subtitle-track-selector"
                     value={activeSubtitleTrackId || 'off'}
@@ -1586,6 +1594,9 @@ export default function VideoPlayer({
                       </option>
                     ))}
                   </select>
+                  {isExtractingSubtitles && (
+                    <span className="text-[9px] text-yellow-400 font-mono animate-pulse px-0.5" title="Extracting dialogue cues in real-time">⚡</span>
+                  )}
                 </div>
               )}
 

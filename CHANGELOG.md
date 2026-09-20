@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.5 - Instant Subtitle Streaming & High-Throughput MKV Extraction
+
+### Fixed & Optimized
+- **Instant Progressive Subtitle Streaming**: Embedded subtitle cues are now streamed progressively to the player engine in real-time as media clusters are parsed, making dialogue subtitles available within milliseconds of opening the video rather than waiting for multi-gigabyte files to finish indexing.
+- **High-Throughput 16MB Chunk Pipeline**: Upgraded the MKV subtitle extractor to a 16MB sliding window buffer, reducing disk I/O and slice promises by 75%.
+- **Time-Budgeted Cooperative Scheduling**: Replaced static block-count yielding with dynamic 25ms time budgeting (`performance.now()`), eliminating timer clamp latency penalties.
+- **Accurate Subtitle Status Feedback**: Replaced misleading `OFF` badge and empty cue states with real-time extraction indicators (`LOADING...`, `Indexing...`, pulse animation) while tracks are processing in the background.
+
 ## v1.1.4 - Aspect Ratio Sizing & Display Modes Fix
 
 ### Fixed

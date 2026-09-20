@@ -12,6 +12,7 @@ interface SubtitleManagerProps {
   subtitleTracks?: MediaSubtitleTrack[];
   activeSubtitleTrackId?: string;
   onSelectSubtitleTrack?: (trackId: string) => void;
+  isExtractingSubtitles?: boolean;
   subtitleDelay: number;
   setSubtitleDelay: (delay: number) => void;
   subtitleSize: number;
@@ -31,6 +32,7 @@ function SubtitleManager({
   subtitleTracks = [],
   activeSubtitleTrackId = '',
   onSelectSubtitleTrack,
+  isExtractingSubtitles = false,
   subtitleDelay,
   setSubtitleDelay,
   subtitleSize,
@@ -209,14 +211,17 @@ function SubtitleManager({
               <button
                 type="button"
                 onClick={() => onSelectSubtitleTrack && onSelectSubtitleTrack(activeSubtitleTrackId === 'off' ? (subtitleTracks[0]?.id || '') : 'off')}
+                disabled={isExtractingSubtitles}
                 className={`flex-shrink-0 px-2 py-1 rounded text-xs font-mono font-bold border transition ${
-                  activeSubtitleTrackId === 'off' || cues.length === 0
+                  isExtractingSubtitles
+                    ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 animate-pulse cursor-wait'
+                    : activeSubtitleTrackId === 'off'
                     ? 'bg-red-500/20 text-red-300 border-red-500/40 hover:bg-red-500/30'
                     : 'bg-yellow-400 text-black border-yellow-300 hover:bg-yellow-300'
                 }`}
-                title={activeSubtitleTrackId === 'off' ? 'Enable Subtitles' : 'Disable Subtitles'}
+                title={isExtractingSubtitles ? 'Extracting Subtitles in Background...' : activeSubtitleTrackId === 'off' ? 'Enable Subtitles' : 'Disable Subtitles'}
               >
-                {activeSubtitleTrackId === 'off' || cues.length === 0 ? 'OFF' : 'ACTIVE'}
+                {isExtractingSubtitles ? 'LOADING...' : activeSubtitleTrackId === 'off' ? 'OFF' : 'ACTIVE'}
               </button>
             </div>
           </div>
@@ -326,13 +331,14 @@ function SubtitleManager({
           <button
             id="toggle-cues-view-btn"
             onClick={() => setShowRawEditor(false)}
-            className={`flex-1 py-1 text-xs rounded border transition ${
+            className={`flex-1 py-1 text-xs rounded border transition flex items-center justify-center gap-1.5 ${
               !showRawEditor 
                 ? 'bg-yellow-400/10 border-yellow-400 text-yellow-400 font-bold' 
                 : 'bg-transparent border-transparent text-white/40 hover:text-white'
             }`}
           >
-            Cues List ({cues.length})
+            <span>Cues List ({cues.length})</span>
+            {isExtractingSubtitles && <span className="text-[10px] text-yellow-300 font-mono animate-pulse">⚡ Indexing...</span>}
           </button>
           <button
             id="toggle-raw-editor-btn"
@@ -452,10 +458,20 @@ function SubtitleManager({
             <div id="subtitle-cues-list" className="space-y-1">
               {filteredCues.length === 0 ? (
                 <div className="text-center py-8 text-white/40 space-y-2">
-                  <p className="text-xs">{searchQuery ? `No subtitles matching "${searchQuery}"` : 'No subtitles loaded for this video.'}</p>
-                  <p className="text-[10px] text-white/30">
-                    {searchQuery ? 'Try clearing your search query above.' : 'Upload an SRT, toggle the raw editor, or trigger "Load Demo Subs" above.'}
-                  </p>
+                  {isExtractingSubtitles ? (
+                    <div className="space-y-3 py-4 flex flex-col items-center">
+                      <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-xs text-yellow-300 font-mono font-semibold">⚡ Extracting Embedded Subtitles...</p>
+                      <p className="text-[10px] text-white/40 font-mono">Instant stream parsing dialogue cues from media container</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs">{searchQuery ? `No subtitles matching "${searchQuery}"` : 'No subtitles loaded for this video.'}</p>
+                      <p className="text-[10px] text-white/30">
+                        {searchQuery ? 'Try clearing your search query above.' : 'Upload an SRT, toggle the raw editor, or trigger "Load Demo Subs" above.'}
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 filteredCues.map((cue, index) => {

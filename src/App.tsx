@@ -64,6 +64,7 @@ export default function App() {
 
   // Abort controller ref for in-flight subtitle extraction cancellation
   const extractionAbortControllerRef = useRef<AbortController | null>(null);
+  const [isExtractingSubtitles, setIsExtractingSubtitles] = useState<boolean>(false);
 
   // Object URLs registry for fast teardown
   const createdObjectUrlsRef = useRef<Set<string>>(new Set());
@@ -92,6 +93,7 @@ export default function App() {
     setCues([]);
     setSubtitleTracks([]);
     setActiveSubtitleTrackId('off');
+    setIsExtractingSubtitles(false);
     setAudioTracks([{
       id: 'audio-track-default',
       index: 0,
@@ -139,13 +141,28 @@ export default function App() {
         if (video.subtitleText) {
           setActiveSubtitleTrackId('sub-ext');
           setCues(parseSubtitles(video.subtitleText));
+          setIsExtractingSubtitles(false);
           return;
         } else if (allSubs.length > 0) {
           const enSub = allSubs.find(t => t.language?.toLowerCase().startsWith('en') || t.label?.toLowerCase().includes('english'));
           const chosenSub = enSub || allSubs[0];
           setActiveSubtitleTrackId(chosenSub.id);
           if (chosenSub.number !== undefined) {
-            const result = await extractEmbeddedSubtitleTrack(fileObj, chosenSub.number, chosenSub.id, controller.signal);
+            setIsExtractingSubtitles(true);
+            const result = await extractEmbeddedSubtitleTrack(
+              fileObj,
+              chosenSub.number,
+              chosenSub.id,
+              controller.signal,
+              (partial) => {
+                if (controller.signal.aborted) return;
+                if (partial && partial.cues.length > 0) {
+                  chosenSub.cues = partial.cues;
+                  setCues(partial.cues);
+                }
+              }
+            );
+            setIsExtractingSubtitles(false);
             if (controller.signal.aborted) return;
             if (result && result.cues.length > 0) {
               chosenSub.cues = result.cues;
@@ -160,6 +177,7 @@ export default function App() {
           return;
         }
       } catch (e) {
+        setIsExtractingSubtitles(false);
         console.warn('Error extracting media tracks from file:', e);
       }
     }
@@ -231,7 +249,21 @@ export default function App() {
     // 2. High-speed extraction for MKV or MP4 embedded track
     if (activeVideo?.file && selectedTrack.number !== undefined) {
       try {
-        const extracted = await extractEmbeddedSubtitleTrack(activeVideo.file as File, selectedTrack.number, selectedTrack.id, controller.signal);
+        setIsExtractingSubtitles(true);
+        const extracted = await extractEmbeddedSubtitleTrack(
+          activeVideo.file as File,
+          selectedTrack.number,
+          selectedTrack.id,
+          controller.signal,
+          (partial) => {
+            if (controller.signal.aborted) return;
+            if (partial && partial.cues.length > 0) {
+              selectedTrack.cues = partial.cues;
+              setCues(partial.cues);
+            }
+          }
+        );
+        setIsExtractingSubtitles(false);
         if (controller.signal.aborted) return;
         if (extracted && extracted.cues.length > 0) {
           selectedTrack.cues = extracted.cues;
@@ -241,6 +273,7 @@ export default function App() {
           setCues([]);
         }
       } catch (e) {
+        setIsExtractingSubtitles(false);
         console.error('Error extracting selected subtitle track:', e);
         setCues([]);
       }
@@ -804,6 +837,7 @@ export default function App() {
               subtitleTracks={subtitleTracks}
               activeSubtitleTrackId={activeSubtitleTrackId}
               onSelectSubtitleTrack={handleSelectSubtitleTrack}
+              isExtractingSubtitles={isExtractingSubtitles}
               bookmarks={bookmarks}
               onAddBookmark={handleAddBookmark}
               onRemoveBookmark={handleRemoveBookmark}
@@ -865,7 +899,10 @@ export default function App() {
               }`}
             >
               <Subtitles size={14} />
-              Yellow Subs ({cues.length})
+              <span>Yellow Subs ({cues.length})</span>
+              {isExtractingSubtitles && (
+                <span className="w-2 h-2 rounded-full bg-yellow-400 animate-ping" title="Extracting subtitles in real-time" />
+              )}
             </button>
             <button
               id="tab-selector-bookmarks"
@@ -933,6 +970,7 @@ export default function App() {
                   subtitleTracks={subtitleTracks}
                   activeSubtitleTrackId={activeSubtitleTrackId}
                   onSelectSubtitleTrack={handleSelectSubtitleTrack}
+                  isExtractingSubtitles={isExtractingSubtitles}
                   subtitleDelay={subtitleDelay}
                   setSubtitleDelay={setSubtitleDelay}
                   subtitleSize={subtitleSize}

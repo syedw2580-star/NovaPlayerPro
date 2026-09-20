@@ -275,14 +275,52 @@ async function parseMKVTracks(file: File): Promise<RawEBMLTrack[]> {
   }
 }
 
+function buildSubtitleCues(cuesList: { start: number; end: number; text: string }[], targetTrackNumber: number): { cues: SubtitleCue[]; srtText: string } {
+  const sorted = [...cuesList].sort((a, b) => a.start - b.start);
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const cur = sorted[i];
+    const next = sorted[i + 1];
+    if (next.start > cur.start && cur.end > next.start) {
+      cur.end = Math.max(cur.start + 0.5, next.start);
+    }
+  }
+
+  const formatTime = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    const ms = Math.floor((sec % 1) * 1000);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+  };
+
+  const cues: SubtitleCue[] = sorted.map((entry, idx) => ({
+    id: `cue-mkv-${targetTrackNumber}-${idx + 1}`,
+    startTime: entry.start,
+    endTime: entry.end,
+    text: entry.text
+  }));
+
+  const srtText = sorted.map((entry, idx) =>
+    `${idx + 1}\n${formatTime(entry.start)} --> ${formatTime(entry.end)}\n${entry.text}\n`
+  ).join('\n');
+
+  return { cues, srtText };
+}
+
 /**
  * Ultra-Fast Streaming Matroska (MKV/WebM) Subtitle Track Extractor.
  * Parses Clusters and extracts BlockGroup / SimpleBlock packets with millisecond precision.
+ * Features time-budgeted non-blocking cooperative yielding and real-time progressive cue streaming.
  */
-export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: number, signal?: AbortSignal): Promise<ExtractedSubtitleResult | null> {
+export async function extractMKVSubtitleTrack(
+  file: File,
+  targetTrackNumber: number,
+  signal?: AbortSignal,
+  onProgress?: (partialResult: ExtractedSubtitleResult) => void
+): Promise<ExtractedSubtitleResult | null> {
   try {
     const fileSize = file.size;
-    const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB sliding buffer
+    const CHUNK_SIZE = 16 * 1024 * 1024; // 16MB high-throughput buffer
     const buffer = new Uint8Array(CHUNK_SIZE);
 
     let clusterTime = 0;
@@ -292,7 +330,9 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
     let bytesInBuffer = 0;
     let bufferStartFilePos = 0;
     let offset = 0;
-    let loopIterations = 0;
+    let lastYieldTime = performance.now();
+    let lastProgressTime = performance.now();
+    let lastProgressCount = 0;
 
     const ensureBytes = async (needed: number): Promise<boolean> => {
       if (offset + needed <= bytesInBuffer) return true;
@@ -323,10 +363,12 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
 
     while (bufferStartFilePos + offset < fileSize) {
       if (signal?.aborted) return null;
-      loopIterations++;
-      if (loopIterations % 80 === 0) {
-        // Cooperative yield to keep browser UI responsive during large file scans
+
+      // Time-budgeted cooperative yield (every 25ms of real elapsed time)
+      const now = performance.now();
+      if (now - lastYieldTime > 25) {
         await new Promise(r => setTimeout(r, 0));
+        lastYieldTime = performance.now();
         if (signal?.aborted) return null;
       }
 
@@ -406,6 +448,22 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
             end: Math.max(0, (blockTime + duration) / 1000),
             text: blockText
           });
+
+          // Progressive cue streaming trigger
+          if (onProgress) {
+            const pNow = performance.now();
+            if (cuesList.length === 1 || (cuesList.length - lastProgressCount >= 20 && pNow - lastProgressTime > 60)) {
+              lastProgressTime = pNow;
+              lastProgressCount = cuesList.length;
+              const partial = buildSubtitleCues(cuesList, targetTrackNumber);
+              onProgress({
+                cues: partial.cues,
+                srtText: partial.srtText,
+                language: 'und',
+                trackName: `Track ${targetTrackNumber}`
+              });
+            }
+          }
         }
 
         offset = dataOffset + sz.value;
@@ -431,6 +489,22 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
                   end: start + 2.8,
                   text
                 });
+
+                // Progressive cue streaming trigger for instantaneous subtitle availability
+                if (onProgress) {
+                  const pNow = performance.now();
+                  if (cuesList.length === 1 || (cuesList.length - lastProgressCount >= 20 && pNow - lastProgressTime > 60)) {
+                    lastProgressTime = pNow;
+                    lastProgressCount = cuesList.length;
+                    const partial = buildSubtitleCues(cuesList, targetTrackNumber);
+                    onProgress({
+                      cues: partial.cues,
+                      srtText: partial.srtText,
+                      language: 'und',
+                      trackName: `Track ${targetTrackNumber}`
+                    });
+                  }
+                }
               }
             }
           }
@@ -445,34 +519,10 @@ export async function extractMKVSubtitleTrack(file: File, targetTrackNumber: num
 
     if (cuesList.length === 0) return null;
 
-    // Sort by start time and fix overlapping end times
-    cuesList.sort((a, b) => a.start - b.start);
-    for (let i = 0; i < cuesList.length - 1; i++) {
-      const cur = cuesList[i];
-      const next = cuesList[i + 1];
-      if (next.start > cur.start && cur.end > next.start) {
-        cur.end = Math.max(cur.start + 0.5, next.start);
-      }
-    }
-
-    const srtLines: string[] = [];
-    cuesList.forEach((entry, idx) => {
-      const formatTime = (sec: number) => {
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        const s = Math.floor(sec % 60);
-        const ms = Math.floor((sec % 1) * 1000);
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
-      };
-      srtLines.push(`${idx + 1}\n${formatTime(entry.start)} --> ${formatTime(entry.end)}\n${entry.text}\n`);
-    });
-
-    const srtText = srtLines.join('\n');
-    const cues = parseSubtitles(srtText);
-
+    const finalBuilt = buildSubtitleCues(cuesList, targetTrackNumber);
     return {
-      cues,
-      srtText,
+      cues: finalBuilt.cues,
+      srtText: finalBuilt.srtText,
       language: 'und',
       trackName: `Track ${targetTrackNumber}`
     };
@@ -1049,12 +1099,18 @@ export async function extractAllMediaTracks(file: File): Promise<MediaTracksDisc
 /**
  * Universal Subtitle Extractor for a specific Track by number/ID.
  */
-export async function extractEmbeddedSubtitleTrack(file: File, trackNumber: number, trackId?: string, signal?: AbortSignal): Promise<ExtractedSubtitleResult | null> {
+export async function extractEmbeddedSubtitleTrack(
+  file: File,
+  trackNumber: number,
+  trackId?: string,
+  signal?: AbortSignal,
+  onProgress?: (partialResult: ExtractedSubtitleResult) => void
+): Promise<ExtractedSubtitleResult | null> {
   const name = file.name.toLowerCase();
   const isMKV = name.endsWith('.mkv') || name.endsWith('.webm') || (trackId && trackId.includes('mkv'));
 
   if (isMKV) {
-    return extractMKVSubtitleTrack(file, trackNumber, signal);
+    return extractMKVSubtitleTrack(file, trackNumber, signal, onProgress);
   } else {
     return extractMP4SubtitleTrack(file, trackNumber, signal);
   }
