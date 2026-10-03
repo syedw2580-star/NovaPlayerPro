@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import { VideoItem, SubtitleCue, Bookmark, VideoStats, MediaAudioTrack, MediaSubtitleTrack } from '../types';
 import { AudioEngine } from '../utils/audioEngine';
 import { getYouTubeVideoId, getVimeoVideoId } from '../utils/urlHelpers';
+import { sanitizeSubtitleHtml } from '../utils/subtitleFormatter';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -1260,10 +1261,9 @@ export default function VideoPlayer({
             fontSize: `${subtitleSize}px`,
             bottom: `${subtitlePosition}%` 
           }}
-          className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none z-20 px-4 py-1 font-sans font-extrabold tracking-wide text-yellow-400 drop-shadow-[0_2px_3px_rgba(0,0,0,1.0)] select-none text-shadow-heavy max-w-[85%]"
-        >
-          {activeSubtitleText}
-        </div>
+          className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none z-20 px-4 py-1 font-sans font-extrabold tracking-wide text-yellow-400 drop-shadow-[0_2px_3px_rgba(0,0,0,1.0)] select-none text-shadow-heavy max-w-[85%] [&_i]:italic [&_em]:italic [&_b]:font-black [&_strong]:font-black [&_u]:underline"
+          dangerouslySetInnerHTML={{ __html: sanitizeSubtitleHtml(activeSubtitleText) }}
+        />
       )}
 
       {/* LOADER SPINNER ON SEEKING */}

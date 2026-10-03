@@ -60,10 +60,16 @@ function cleanSubtitleText(raw: string): string {
       text = text.substring(idx);
     }
   }
-  // Remove ASS style override tags like {\an8}, {\pos(...)}, {\i1}
+  // Convert ASS style override tags like {\i1}..{\i0} to standard HTML tags
+  text = text.replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>');
+  text = text.replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>');
+  text = text.replace(/\{\\u1\}(.*?)\{\\u0\}/gi, '<u>$1</u>');
+  // Remove remaining ASS style override tags like {\an8}, {\pos(...)}
   text = text.replace(/\{[^}]+\}/g, '');
   // Convert ASS line break escapes to standard newlines
   text = text.replace(/\\N/g, '\n').replace(/\\n/g, '\n');
+  // Strip any non-formatting HTML/XML tags (keep safe i, em, b, strong, u, font, br)
+  text = text.replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '');
   return text.trim();
 }
 

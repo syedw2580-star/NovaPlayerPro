@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.6 - Subtitle Markup Rendering & Semantic Formatting Engine
+
+### Fixed & Enhanced
+- **HTML Subtitle Tag Rendering**: Fixed raw markup tags (such as `<i>`, `</i>`, `<b>`, `<u>`) being printed as literal text on screen. Subtitles containing italics (such as music lyrics, whispers, and off-screen dialogue) are now parsed and rendered with proper CSS typography formatting (`font-style: italic`, `font-weight: bold`, `text-decoration: underline`).
+- **Tag Sanitization**: Integrated `sanitizeSubtitleHtml` to safely parse standard subtitle formatting (`<i>`, `<em>`, `<b>`, `<strong>`, `<u>`, `<font>`, `<br>`) while stripping malformed or non-formatting tags, preventing tags from leaking onto the video overlay.
+- **ASS/SSA Style Code Conversion**: Converted ASS override tags (`{\i1}..{\i0}`, `{\b1}..{\b0}`, `{\u1}..{\u0}`) to semantic HTML tags for uniform cross-format subtitle rendering.
+- **Sidebar Preview**: Added formatted typography preview in the Subtitle Manager cue list for styled dialogue.
+
 ## v1.1.5 - Instant Subtitle Streaming & High-Throughput MKV Extraction
 
 ### Fixed & Optimized

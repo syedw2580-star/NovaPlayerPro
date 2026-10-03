@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SubtitleCue, VideoItem, MediaSubtitleTrack } from '../types';
 import { parseSubtitles } from '../utils/subtitleParser';
+import { sanitizeSubtitleHtml } from '../utils/subtitleFormatter';
 import { Upload, Plus, Trash2, Clock, Edit3, HelpCircle, Save, MessageSquare } from 'lucide-react';
 import { sampleSrtSubtitles } from '../data/defaultCatalog';
 
@@ -514,6 +515,12 @@ function SubtitleManager({
                         onChange={(e) => handleEditCueText(cue.id, e.target.value)}
                         className="bg-transparent text-white border-b border-transparent hover:border-white/10 focus:border-yellow-400 focus:outline-none w-full pb-0.5"
                       />
+                      {cue.text.includes('<') && (
+                        <div 
+                          className="text-[11px] text-yellow-300/80 italic font-mono px-1 py-0.5 bg-white/5 rounded border border-white/5 [&_i]:italic [&_em]:italic [&_b]:font-bold [&_u]:underline pointer-events-none"
+                          dangerouslySetInnerHTML={{ __html: sanitizeSubtitleHtml(cue.text) }}
+                        />
+                      )}
                     </div>
                   );
                 })

@@ -46,9 +46,13 @@ export function parseSubtitles(text: string): SubtitleCue[] {
           const endTime = parseTimestamp(endStr);
           
           const cleanText = textPart
+            .replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>')
+            .replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>')
+            .replace(/\{\\u1\}(.*?)\{\\u0\}/gi, '<u>$1</u>')
             .replace(/\{[^}]+\}/g, '')
             .replace(/\\N/g, '\n')
             .replace(/\\n/g, '\n')
+            .replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '')
             .trim();
             
           if (cleanText && !isNaN(startTime) && !isNaN(endTime)) {
@@ -100,9 +104,9 @@ export function parseSubtitles(text: string): SubtitleCue[] {
       const textLines = lines.slice(timingIndex + 1);
       const subtitleText = textLines.join('\n');
       
-      // Clean tags out if they obstruct styling, but keep simple line breaks
+      // Strip non-formatting HTML/XML tags, preserve safe styling tags (i, em, b, strong, u, font, br)
       const cleanText = subtitleText
-        .replace(/<[^>]+>/g, '') // strip HTML/XML tags
+        .replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '')
         .trim();
         
       if (startTime !== undefined && endTime !== undefined) {
