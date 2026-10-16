@@ -51,6 +51,7 @@ export interface SubtitleCue {
   startTime: number; // in seconds
   endTime: number;   // in seconds
   text: string;
+  align?: 'top' | 'middle' | 'bottom';
 }
 
 export interface Bookmark {

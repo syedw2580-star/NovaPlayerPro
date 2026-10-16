@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.7 - ASS Alignment Tag Parsing & Dynamic Top Subtitle Positioning
+
+### Fixed & Enhanced
+- **ASS/SSA Override Tag Stripping**: Eliminated raw alignment tags (`{\an8}`, `{\an7}`, etc.) and curly-bracket overrides from leaking into on-screen subtitle displays and the cues list.
+- **Dynamic Subtitle Positioning**: Added support for top and center-screen subtitle placement when indicated by subtitle tags (e.g., `\an8`, `\an7` for upper dialogue/signs), preventing captions from obscuring lower-third graphics or credits.
+- **Cross-Format Alignment Extraction**: Integrated alignment detection into both the MKV EBML streaming extractor and the SRT/VTT parser.
+- **Cue Inspector Badge**: Added a `TOP` indicator tag to cues in the Subtitle Manager sidebar for cues positioned at the top of the viewport.
+
 ## v1.1.6 - Subtitle Markup Rendering & Semantic Formatting Engine
 
 ### Fixed & Enhanced

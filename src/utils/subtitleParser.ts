@@ -45,6 +45,13 @@ export function parseSubtitles(text: string): SubtitleCue[] {
           const startTime = parseTimestamp(startStr);
           const endTime = parseTimestamp(endStr);
           
+          let align: 'top' | 'middle' | 'bottom' = 'bottom';
+          if (/\{(\\an[789]|\\a[567])\}/i.test(textPart)) {
+            align = 'top';
+          } else if (/\{(\\an[456]|\\a[9]|\\a1[01])\}/i.test(textPart)) {
+            align = 'middle';
+          }
+
           const cleanText = textPart
             .replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>')
             .replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>')
@@ -60,7 +67,8 @@ export function parseSubtitles(text: string): SubtitleCue[] {
               id: `cue-${idCounter++}`,
               startTime,
               endTime,
-              text: cleanText
+              text: cleanText,
+              align
             });
           }
         }
@@ -104,8 +112,21 @@ export function parseSubtitles(text: string): SubtitleCue[] {
       const textLines = lines.slice(timingIndex + 1);
       const subtitleText = textLines.join('\n');
       
-      // Strip non-formatting HTML/XML tags, preserve safe styling tags (i, em, b, strong, u, font, br)
+      let align: 'top' | 'middle' | 'bottom' = 'bottom';
+      if (/\{(\\an[789]|\\a[567])\}/i.test(subtitleText)) {
+        align = 'top';
+      } else if (/\{(\\an[456]|\\a[9]|\\a1[01])\}/i.test(subtitleText)) {
+        align = 'middle';
+      }
+
+      // Convert ASS italics/bold syntax and clean all curly-bracket tags (like {\an8}, {\pos(..)})
       const cleanText = subtitleText
+        .replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>')
+        .replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>')
+        .replace(/\{\\u1\}(.*?)\{\\u0\}/gi, '<u>$1</u>')
+        .replace(/\{[^}]+\}/g, '')
+        .replace(/\\N/g, '\n')
+        .replace(/\\n/g, '\n')
         .replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '')
         .trim();
         
@@ -114,7 +135,8 @@ export function parseSubtitles(text: string): SubtitleCue[] {
           id: `cue-${idCounter++}`,
           startTime,
           endTime,
-          text: cleanText
+          text: cleanText,
+          align
         });
       }
     } catch (e) {

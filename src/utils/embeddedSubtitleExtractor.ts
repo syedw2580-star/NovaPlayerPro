@@ -1,5 +1,6 @@
 import { SubtitleCue, MediaAudioTrack, MediaSubtitleTrack } from '../types';
 import { parseSubtitles } from './subtitleParser';
+import { extractSubtitleAlignment } from './subtitleFormatter';
 
 export interface ExtractedSubtitleResult {
   cues: SubtitleCue[];
@@ -281,7 +282,7 @@ async function parseMKVTracks(file: File): Promise<RawEBMLTrack[]> {
   }
 }
 
-function buildSubtitleCues(cuesList: { start: number; end: number; text: string }[], targetTrackNumber: number): { cues: SubtitleCue[]; srtText: string } {
+function buildSubtitleCues(cuesList: { start: number; end: number; text: string; align?: 'top' | 'middle' | 'bottom' }[], targetTrackNumber: number): { cues: SubtitleCue[]; srtText: string } {
   const sorted = [...cuesList].sort((a, b) => a.start - b.start);
   for (let i = 0; i < sorted.length - 1; i++) {
     const cur = sorted[i];
@@ -303,7 +304,8 @@ function buildSubtitleCues(cuesList: { start: number; end: number; text: string 
     id: `cue-mkv-${targetTrackNumber}-${idx + 1}`,
     startTime: entry.start,
     endTime: entry.end,
-    text: entry.text
+    text: entry.text,
+    align: entry.align
   }));
 
   const srtText = sorted.map((entry, idx) =>
@@ -330,7 +332,7 @@ export async function extractMKVSubtitleTrack(
     const buffer = new Uint8Array(CHUNK_SIZE);
 
     let clusterTime = 0;
-    const cuesList: { start: number; end: number; text: string }[] = [];
+    const cuesList: { start: number; end: number; text: string; align?: 'top' | 'middle' | 'bottom' }[] = [];
     const decoder = new TextDecoder('utf-8');
 
     let bytesInBuffer = 0;
@@ -416,6 +418,7 @@ export async function extractMKVSubtitleTrack(
         let bgPos = dataOffset;
         let blockTime: number | null = null;
         let blockText: string | null = null;
+        let blockAlign: 'top' | 'middle' | 'bottom' = 'bottom';
         let duration = 2500;
 
         while (bgPos < bgEnd - 4) {
@@ -434,6 +437,7 @@ export async function extractMKVSubtitleTrack(
                 const relTc = dv.getInt16(0, false);
                 const textBytes = buffer.subarray(p + 3, subData + subSz.value);
                 const rawText = decoder.decode(textBytes).trim();
+                blockAlign = extractSubtitleAlignment(rawText);
                 blockText = cleanSubtitleText(rawText);
                 blockTime = clusterTime + relTc;
               }
@@ -452,7 +456,8 @@ export async function extractMKVSubtitleTrack(
           cuesList.push({
             start: Math.max(0, blockTime / 1000),
             end: Math.max(0, (blockTime + duration) / 1000),
-            text: blockText
+            text: blockText,
+            align: blockAlign
           });
 
           // Progressive cue streaming trigger
@@ -487,13 +492,15 @@ export async function extractMKVSubtitleTrack(
               const relTc = dv.getInt16(0, false);
               const textBytes = buffer.subarray(p + 3, dataOffset + sz.value);
               const rawText = decoder.decode(textBytes).trim();
+              const align = extractSubtitleAlignment(rawText);
               const text = cleanSubtitleText(rawText);
               if (text) {
                 const start = Math.max(0, (clusterTime + relTc) / 1000);
                 cuesList.push({
                   start,
                   end: start + 2.8,
-                  text
+                  text,
+                  align
                 });
 
                 // Progressive cue streaming trigger for instantaneous subtitle availability

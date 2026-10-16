@@ -3,7 +3,7 @@ import Hls from 'hls.js';
 import { VideoItem, SubtitleCue, Bookmark, VideoStats, MediaAudioTrack, MediaSubtitleTrack } from '../types';
 import { AudioEngine } from '../utils/audioEngine';
 import { getYouTubeVideoId, getVimeoVideoId } from '../utils/urlHelpers';
-import { sanitizeSubtitleHtml } from '../utils/subtitleFormatter';
+import { sanitizeSubtitleHtml, extractSubtitleAlignment } from '../utils/subtitleFormatter';
 import { useAudioEngine } from '../hooks/useAudioEngine';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -227,6 +227,7 @@ export default function VideoPlayer({
 
   // Subtitle cue to display
   const [activeSubtitleText, setActiveSubtitleText] = useState<string>('');
+  const [activeSubtitleAlign, setActiveSubtitleAlign] = useState<'top' | 'middle' | 'bottom'>('bottom');
 
   // Smart Audio Booster (Dynamic Compressor + Waveshaper Soft-Clipper for 300% safe loudness)
   const [isSmartBoostEnabled, setIsSmartBoostEnabled] = useState<boolean>(true);
@@ -549,6 +550,7 @@ export default function VideoPlayer({
     }
 
     setActiveSubtitleText(activeCue ? activeCue.text : '');
+    setActiveSubtitleAlign(activeCue?.align || (activeCue ? extractSubtitleAlignment(activeCue.text) : 'bottom'));
   }, [currentTime, cues, subtitleDelay]);
 
   // Auto-hide controls & mouse cursor handler (YouTube style)
@@ -1259,7 +1261,11 @@ export default function VideoPlayer({
           id="custom-yellow-subtitles-viewport"
           style={{ 
             fontSize: `${subtitleSize}px`,
-            bottom: `${subtitlePosition}%` 
+            ...(activeSubtitleAlign === 'top'
+              ? { top: `${subtitlePosition}%`, bottom: 'auto' }
+              : activeSubtitleAlign === 'middle'
+              ? { top: '50%', bottom: 'auto', transform: 'translate(-50%, -50%)' }
+              : { bottom: `${subtitlePosition}%`, top: 'auto' })
           }}
           className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-none z-20 px-4 py-1 font-sans font-extrabold tracking-wide text-yellow-400 drop-shadow-[0_2px_3px_rgba(0,0,0,1.0)] select-none text-shadow-heavy max-w-[85%] [&_i]:italic [&_em]:italic [&_b]:font-black [&_strong]:font-black [&_u]:underline"
           dangerouslySetInnerHTML={{ __html: sanitizeSubtitleHtml(activeSubtitleText) }}
