@@ -490,23 +490,16 @@ function SubtitleManager({
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => onSeek(shiftStart)}
-                            className="flex items-center gap-1 font-mono text-[10px] text-white/60 hover:text-yellow-400 transition"
-                            title="Seek to timing"
-                          >
-                            <Clock size={11} className="text-yellow-400/80" />
-                            <span>{formatTime(shiftStart).split(',')[0]}</span>
-                            <span className="text-white/20">→</span>
-                            <span>{formatTime(shiftEnd).split(',')[0]}</span>
-                          </button>
-                          {cue.align === 'top' && (
-                            <span className="px-1 py-0.2 bg-yellow-400/20 text-yellow-300 rounded text-[9px] font-mono uppercase tracking-wider">
-                              TOP
-                            </span>
-                          )}
-                        </div>
+                        <button
+                          onClick={() => onSeek(shiftStart)}
+                          className="flex items-center gap-1 font-mono text-[10px] text-white/60 hover:text-yellow-400 transition"
+                          title="Seek to timing"
+                        >
+                          <Clock size={11} className="text-yellow-400/80" />
+                          <span>{formatTime(shiftStart).split(',')[0]}</span>
+                          <span className="text-white/20">→</span>
+                          <span>{formatTime(shiftEnd).split(',')[0]}</span>
+                        </button>
                         <button
                           onClick={() => handleDeleteCue(cue.id)}
                           className="text-white/30 hover:text-red-400 transition p-0.5"

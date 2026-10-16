@@ -1,6 +1,13 @@
 # Changelog
 
-## v1.1.7 - ASS Alignment Tag Parsing & Dynamic Top Subtitle Positioning
+## v1.1.8 - Consistent Bottom Subtitle Placement & Tag Stripping
+
+### Fixed
+- **Fixed Subtitle Vertical Positioning**: Restored strict bottom-aligned subtitle positioning (`bottom: ${subtitlePosition}%`), ensuring subtitles never jump to the top of the video when tags like `{\an8}` are encountered.
+- **ASS/SSA Control Code Stripping**: Stripped `{\an8}`, `{\pos(...)}`, and other curly-bracket override tags from dialogue text across both streaming MKV extraction and external SRT/VTT parsing.
+- **Clean Dialogue Presentation**: Preserved user Y-Position slider preference so subtitles remain consistently positioned at the bottom of the video without unwanted jumping.
+
+## v1.1.7 - ASS Alignment Tag Parsing & Subtitle Formatting
 
 ### Fixed & Enhanced
 - **ASS/SSA Override Tag Stripping**: Eliminated raw alignment tags (`{\an8}`, `{\an7}`, etc.) and curly-bracket overrides from leaking into on-screen subtitle displays and the cues list.
