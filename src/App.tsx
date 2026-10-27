@@ -402,7 +402,7 @@ export default function App() {
     for (const f of filesArray) {
       const lower = f.name.toLowerCase();
       const ext = f.name.includes('.') ? f.name.substring(f.name.lastIndexOf('.')).toLowerCase() : '';
-      if (lower.endsWith('.srt') || lower.endsWith('.vtt')) {
+      if (lower.endsWith('.srt') || lower.endsWith('.vtt') || lower.endsWith('.ass') || lower.endsWith('.ssa')) {
         const base = f.name.replace(/\.[^/.]+$/, "").toLowerCase().trim();
         subtitleFilesMap.set(base, f);
       } else if (videoExtensions.includes(ext) || f.type.startsWith('video/')) {

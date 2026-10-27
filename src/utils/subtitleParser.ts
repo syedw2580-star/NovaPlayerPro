@@ -1,7 +1,8 @@
 import { SubtitleCue } from '../types';
+import { cleanSubtitleText, extractSubtitleAlignment } from './subtitleFormatter';
 
 /**
- * Converts a subtitle timestamp string (HH:MM:SS.mmm or MM:SS.mmm) to seconds.
+ * Converts a subtitle timestamp string (HH:MM:SS.mmm, MM:SS.mmm, or H:MM:SS.cs) to seconds.
  */
 function parseTimestamp(timestamp: string): number {
   const cleaned = timestamp.trim().replace(',', '.'); // Handle SRT comma decimals
@@ -11,11 +12,11 @@ function parseTimestamp(timestamp: string): number {
     const hours = parseInt(parts[0], 10);
     const minutes = parseInt(parts[1], 10);
     const seconds = parseFloat(parts[2]);
-    return hours * 3600 + minutes * 60 + seconds;
+    return (hours * 3600) + (minutes * 60) + seconds;
   } else if (parts.length === 2) {
     const minutes = parseInt(parts[0], 10);
     const seconds = parseFloat(parts[1]);
-    return minutes * 60 + seconds;
+    return (minutes * 60) + seconds;
   } else {
     const seconds = parseFloat(cleaned);
     return isNaN(seconds) ? 0 : seconds;
@@ -23,7 +24,7 @@ function parseTimestamp(timestamp: string): number {
 }
 
 /**
- * Parses WebVTT or SRT text content into SubtitleCue items.
+ * Parses WebVTT, SRT, or ASS/SSA text content into SubtitleCue items.
  */
 export function parseSubtitles(text: string): SubtitleCue[] {
   const cues: SubtitleCue[] = [];
@@ -31,37 +32,33 @@ export function parseSubtitles(text: string): SubtitleCue[] {
   let idCounter = 1;
 
   // Check if content is ASS/SSA format
-  if (normalized.includes('[Events]') || normalized.includes('Dialogue:')) {
+  if (normalized.includes('[Events]') || normalized.includes('Dialogue:') || normalized.includes('[Script Info]')) {
     const lines = normalized.split('\n');
+    let formatIndices: { start: number; end: number; text: number } = { start: 1, end: 2, text: 9 };
+
     for (const line of lines) {
-      if (line.startsWith('Dialogue:')) {
-        const dialogContent = line.substring(9).trim();
+      const trimmed = line.trim();
+      if (/^Format:\s*/i.test(trimmed)) {
+        const fields = trimmed.replace(/^Format:\s*/i, '').split(',').map(f => f.trim().toLowerCase());
+        const sIdx = fields.indexOf('start');
+        const eIdx = fields.indexOf('end');
+        const tIdx = fields.indexOf('text');
+        if (sIdx !== -1 && eIdx !== -1 && tIdx !== -1) {
+          formatIndices = { start: sIdx, end: eIdx, text: tIdx };
+        }
+      } else if (/^Dialogue:\s*/i.test(trimmed)) {
+        const dialogContent = trimmed.replace(/^Dialogue:\s*/i, '');
         const parts = dialogContent.split(',');
-        if (parts.length >= 10) {
-          const startStr = parts[1];
-          const endStr = parts[2];
-          const textPart = parts.slice(9).join(',');
+        if (parts.length > Math.max(formatIndices.start, formatIndices.end, formatIndices.text)) {
+          const startStr = parts[formatIndices.start];
+          const endStr = parts[formatIndices.end];
+          const textPart = parts.slice(formatIndices.text).join(',');
           
           const startTime = parseTimestamp(startStr);
           const endTime = parseTimestamp(endStr);
-          
-          let align: 'top' | 'middle' | 'bottom' = 'bottom';
-          if (/\{(\\an[789]|\\a[567])\}/i.test(textPart)) {
-            align = 'top';
-          } else if (/\{(\\an[456]|\\a[9]|\\a1[01])\}/i.test(textPart)) {
-            align = 'middle';
-          }
+          const align = extractSubtitleAlignment(textPart);
+          const cleanText = cleanSubtitleText(textPart);
 
-          const cleanText = textPart
-            .replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>')
-            .replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>')
-            .replace(/\{\\u1\}(.*?)\{\\u0\}/gi, '<u>$1</u>')
-            .replace(/\{[^}]+\}/g, '')
-            .replace(/\\N/g, '\n')
-            .replace(/\\n/g, '\n')
-            .replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '')
-            .trim();
-            
           if (cleanText && !isNaN(startTime) && !isNaN(endTime)) {
             cues.push({
               id: `cue-${idCounter++}`,
@@ -112,25 +109,10 @@ export function parseSubtitles(text: string): SubtitleCue[] {
       const textLines = lines.slice(timingIndex + 1);
       const subtitleText = textLines.join('\n');
       
-      let align: 'top' | 'middle' | 'bottom' = 'bottom';
-      if (/\{(\\an[789]|\\a[567])\}/i.test(subtitleText)) {
-        align = 'top';
-      } else if (/\{(\\an[456]|\\a[9]|\\a1[01])\}/i.test(subtitleText)) {
-        align = 'middle';
-      }
-
-      // Convert ASS italics/bold syntax and clean all curly-bracket tags (like {\an8}, {\pos(..)})
-      const cleanText = subtitleText
-        .replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>')
-        .replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>')
-        .replace(/\{\\u1\}(.*?)\{\\u0\}/gi, '<u>$1</u>')
-        .replace(/\{[^}]+\}/g, '')
-        .replace(/\\N/g, '\n')
-        .replace(/\\n/g, '\n')
-        .replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '')
-        .trim();
+      const align = extractSubtitleAlignment(subtitleText);
+      const cleanText = cleanSubtitleText(subtitleText);
         
-      if (startTime !== undefined && endTime !== undefined) {
+      if (startTime !== undefined && endTime !== undefined && cleanText) {
         cues.push({
           id: `cue-${idCounter++}`,
           startTime,

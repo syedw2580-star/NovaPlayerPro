@@ -169,7 +169,7 @@ function SubtitleManager({
               className="px-2.5 py-1 bg-yellow-400 text-black rounded text-[11px] font-bold hover:bg-yellow-300 transition flex items-center gap-1 shadow"
             >
               <Upload size={12} />
-              Upload SRT/VTT
+              Upload Subs
             </button>
           </div>
           <input
@@ -177,7 +177,7 @@ function SubtitleManager({
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
-            accept=".srt,.vtt,text/vtt"
+            accept=".srt,.vtt,.ass,.ssa,text/vtt,text/plain"
             className="hidden"
           />
         </div>

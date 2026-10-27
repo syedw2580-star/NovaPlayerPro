@@ -1,6 +1,6 @@
 import { SubtitleCue, MediaAudioTrack, MediaSubtitleTrack } from '../types';
 import { parseSubtitles } from './subtitleParser';
-import { extractSubtitleAlignment } from './subtitleFormatter';
+import { extractSubtitleAlignment, cleanSubtitleText } from './subtitleFormatter';
 
 export interface ExtractedSubtitleResult {
   cues: SubtitleCue[];
@@ -41,37 +41,6 @@ function formatLanguage(code: string): string {
   if (!code) return 'Undetermined';
   const clean = code.toLowerCase().trim();
   return LANGUAGE_NAMES[clean] || code.toUpperCase();
-}
-
-/**
- * Clean ASS/SSA formatting and control codes from raw subtitle strings
- */
-function cleanSubtitleText(raw: string): string {
-  if (!raw) return '';
-  let text = raw.trim();
-  // Strip SSA/ASS Dialogue header if present
-  if (text.startsWith('Dialogue:')) {
-    let commaCount = 0;
-    let idx = 0;
-    while (idx < text.length && commaCount < 9) {
-      if (text[idx] === ',') commaCount++;
-      idx++;
-    }
-    if (commaCount >= 9) {
-      text = text.substring(idx);
-    }
-  }
-  // Convert ASS style override tags like {\i1}..{\i0} to standard HTML tags
-  text = text.replace(/\{\\i1\}(.*?)\{\\i0\}/gi, '<i>$1</i>');
-  text = text.replace(/\{\\b1\}(.*?)\{\\b0\}/gi, '<b>$1</b>');
-  text = text.replace(/\{\\u1\}(.*?)\{\\u0\}/gi, '<u>$1</u>');
-  // Remove remaining ASS style override tags like {\an8}, {\pos(...)}
-  text = text.replace(/\{[^}]+\}/g, '');
-  // Convert ASS line break escapes to standard newlines
-  text = text.replace(/\\N/g, '\n').replace(/\\n/g, '\n');
-  // Strip any non-formatting HTML/XML tags (keep safe i, em, b, strong, u, font, br)
-  text = text.replace(/<(?=[a-z/!])(?!\/?(i|em|b|strong|u|font|br)\b)[^>]*>/gi, '');
-  return text.trim();
 }
 
 /* ========================================================================= */

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.9 - Matroska ASS/SSA Packet Header Stripping & Full SSA/ASS Support
+
+### Fixed
+- **MKV Embedded ASS/SSA Packet Header Stripping**: Fixed raw Matroska packet headers (`ReadOrder, Layer, Style, Name, MarginL, MarginR, MarginV, Effect, Text`, such as `43,0,Default,,0,0,0,,`) leaking into on-screen subtitles and cue lists when playing MKV files with embedded ASS/SSA subtitle tracks.
+- **Universal ASS/SSA Cleaner**: Added comprehensive parsing and stripping of packet prefixes, vector drawing commands (`{\p1}...{\p0}`), hard space tags (`\h`), and style codes across both streaming MKV extraction and external subtitle loading.
+- **Dynamic ASS Format Parsing**: Added dynamic `Format:` column index mapping for standalone `.ass` and `.ssa` files.
+- **Direct ASS/SSA File Support**: Enabled `.ass` and `.ssa` upload and drag-and-drop auto-detection across the player.
+
 ## v1.1.8 - Consistent Bottom Subtitle Placement & Tag Stripping
 
 ### Fixed

@@ -122,7 +122,7 @@ function CatalogueList({
             type="file"
             ref={fileInputRef}
             onChange={handleLocalUpload}
-            accept=".mp4,.mkv,.webm,.avi,.mov,.flv,.wmv,.m4v,.ts,.3gp,.ogv,.srt,.vtt"
+            accept=".mp4,.mkv,.webm,.avi,.mov,.flv,.wmv,.m4v,.ts,.3gp,.ogv,.srt,.vtt,.ass,.ssa"
             multiple
             className="hidden"
           />
