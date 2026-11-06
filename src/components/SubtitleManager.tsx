@@ -141,10 +141,18 @@ function SubtitleManager({
   };
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [displayLimit, setDisplayLimit] = useState<number>(100);
+
+  // Reset limit when query changes or cues change drastically
+  useEffect(() => {
+    setDisplayLimit(100);
+  }, [searchQuery, cues.length]);
 
   const filteredCues = searchQuery.trim()
     ? cues.filter(c => c.text.toLowerCase().includes(searchQuery.toLowerCase()))
     : cues;
+
+  const visibleCues = filteredCues.slice(0, displayLimit);
 
   return (
     <div id="subtitle-manager-root" className="flex flex-col h-full text-white/70 bg-transparent min-h-0">
@@ -475,55 +483,69 @@ function SubtitleManager({
                   )}
                 </div>
               ) : (
-                filteredCues.map((cue, index) => {
-                  const shiftStart = cue.startTime + subtitleDelay;
-                  const shiftEnd = cue.endTime + subtitleDelay;
-                  const isActive = activeTime >= shiftStart && activeTime <= shiftEnd;
+                <>
+                  {visibleCues.map((cue, index) => {
+                    const shiftStart = cue.startTime + subtitleDelay;
+                    const shiftEnd = cue.endTime + subtitleDelay;
+                    const isActive = activeTime >= shiftStart && activeTime <= shiftEnd;
 
-                  return (
-                    <div
-                      key={cue.id || index}
-                      className={`p-2.5 border-r transition text-xs flex flex-col gap-1.5 ${
-                        isActive
-                          ? 'bg-yellow-400/10 border-l-2 border-yellow-400 rounded-r'
-                          : 'hover:bg-white/5 border border-transparent rounded'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => onSeek(shiftStart)}
-                          className="flex items-center gap-1 font-mono text-[10px] text-white/60 hover:text-yellow-400 transition"
-                          title="Seek to timing"
-                        >
-                          <Clock size={11} className="text-yellow-400/80" />
-                          <span>{formatTime(shiftStart).split(',')[0]}</span>
-                          <span className="text-white/20">→</span>
-                          <span>{formatTime(shiftEnd).split(',')[0]}</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCue(cue.id)}
-                          className="text-white/30 hover:text-red-400 transition p-0.5"
-                          title="Delete cue"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
+                    return (
+                      <div
+                        key={cue.id || index}
+                        className={`p-2.5 border-r transition text-xs flex flex-col gap-1.5 ${
+                          isActive
+                            ? 'bg-yellow-400/10 border-l-2 border-yellow-400 rounded-r'
+                            : 'hover:bg-white/5 border border-transparent rounded'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => onSeek(shiftStart)}
+                            className="flex items-center gap-1 font-mono text-[10px] text-white/60 hover:text-yellow-400 transition"
+                            title="Seek to timing"
+                          >
+                            <Clock size={11} className="text-yellow-400/80" />
+                            <span>{formatTime(shiftStart).split(',')[0]}</span>
+                            <span className="text-white/20">→</span>
+                            <span>{formatTime(shiftEnd).split(',')[0]}</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCue(cue.id)}
+                            className="text-white/30 hover:text-red-400 transition p-0.5"
+                            title="Delete cue"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
 
-                      <input
-                        type="text"
-                        value={cue.text}
-                        onChange={(e) => handleEditCueText(cue.id, e.target.value)}
-                        className="bg-transparent text-white border-b border-transparent hover:border-white/10 focus:border-yellow-400 focus:outline-none w-full pb-0.5"
-                      />
-                      {cue.text.includes('<') && (
-                        <div 
-                          className="text-[11px] text-yellow-300/80 italic font-mono px-1 py-0.5 bg-white/5 rounded border border-white/5 [&_i]:italic [&_em]:italic [&_b]:font-bold [&_u]:underline pointer-events-none"
-                          dangerouslySetInnerHTML={{ __html: sanitizeSubtitleHtml(cue.text) }}
+                        <input
+                          type="text"
+                          value={cue.text}
+                          onChange={(e) => handleEditCueText(cue.id, e.target.value)}
+                          className="bg-transparent text-white border-b border-transparent hover:border-white/10 focus:border-yellow-400 focus:outline-none w-full pb-0.5"
                         />
-                      )}
+                        {cue.text.includes('<') && (
+                          <div 
+                            className="text-[11px] text-yellow-300/80 italic font-mono px-1 py-0.5 bg-white/5 rounded border border-white/5 [&_i]:italic [&_em]:italic [&_b]:font-bold [&_u]:underline pointer-events-none"
+                            dangerouslySetInnerHTML={{ __html: sanitizeSubtitleHtml(cue.text) }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {filteredCues.length > displayLimit && (
+                    <div className="text-center pt-2 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setDisplayLimit(prev => prev + 150)}
+                        className="px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-xs font-mono text-yellow-400 font-semibold transition"
+                      >
+                        Load More Cues ({filteredCues.length - displayLimit} remaining)
+                      </button>
                     </div>
-                  );
-                })
+                  )}
+                </>
               )}
             </div>
           </div>

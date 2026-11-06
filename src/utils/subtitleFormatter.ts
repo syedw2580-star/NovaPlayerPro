@@ -143,6 +143,24 @@ export function extractSubtitleAlignment(raw: string): 'top' | 'middle' | 'botto
 }
 
 /**
+ * Checks if raw text is a binary bitmap subtitle payload (such as HDMV PGS, VobSub, DVB, or corrupted non-text).
+ */
+export function isBinarySubtitle(raw: string): boolean {
+  if (!raw) return false;
+  // PGS packets start with 0x50 0x47 ("PG")
+  if (raw.startsWith('PG\u0000') || raw.startsWith('SP\u0000')) return true;
+  let nonPrintable = 0;
+  const sampleLen = Math.min(raw.length, 80);
+  for (let i = 0; i < sampleLen; i++) {
+    const code = raw.charCodeAt(i);
+    if ((code < 32 && code !== 9 && code !== 10 && code !== 13) || code === 65533) {
+      nonPrintable++;
+    }
+  }
+  return nonPrintable >= 2;
+}
+
+/**
  * Strips all HTML/XML tags and ASS/SSA tags from subtitle text, returning clean plain text.
  */
 export function stripSubtitleHtml(raw: string): string {

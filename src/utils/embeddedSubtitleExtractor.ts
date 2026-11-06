@@ -1,6 +1,6 @@
 import { SubtitleCue, MediaAudioTrack, MediaSubtitleTrack } from '../types';
 import { parseSubtitles } from './subtitleParser';
-import { extractSubtitleAlignment, cleanSubtitleText } from './subtitleFormatter';
+import { extractSubtitleAlignment, cleanSubtitleText, isBinarySubtitle } from './subtitleFormatter';
 
 export interface ExtractedSubtitleResult {
   cues: SubtitleCue[];
@@ -406,9 +406,11 @@ export async function extractMKVSubtitleTrack(
                 const relTc = dv.getInt16(0, false);
                 const textBytes = buffer.subarray(p + 3, subData + subSz.value);
                 const rawText = decoder.decode(textBytes).trim();
-                blockAlign = extractSubtitleAlignment(rawText);
-                blockText = cleanSubtitleText(rawText);
-                blockTime = clusterTime + relTc;
+                if (!isBinarySubtitle(rawText)) {
+                  blockAlign = extractSubtitleAlignment(rawText);
+                  blockText = cleanSubtitleText(rawText);
+                  blockTime = clusterTime + relTc;
+                }
               }
             }
           } else if (subEl.id === 0x9B) {
@@ -461,31 +463,33 @@ export async function extractMKVSubtitleTrack(
               const relTc = dv.getInt16(0, false);
               const textBytes = buffer.subarray(p + 3, dataOffset + sz.value);
               const rawText = decoder.decode(textBytes).trim();
-              const align = extractSubtitleAlignment(rawText);
-              const text = cleanSubtitleText(rawText);
-              if (text) {
-                const start = Math.max(0, (clusterTime + relTc) / 1000);
-                cuesList.push({
-                  start,
-                  end: start + 2.8,
-                  text,
-                  align
-                });
+              if (!isBinarySubtitle(rawText)) {
+                const align = extractSubtitleAlignment(rawText);
+                const text = cleanSubtitleText(rawText);
+                if (text) {
+                  const start = Math.max(0, (clusterTime + relTc) / 1000);
+                  cuesList.push({
+                    start,
+                    end: start + 2.8,
+                    text,
+                    align
+                  });
+                }
+              }
 
-                // Progressive cue streaming trigger for instantaneous subtitle availability
-                if (onProgress) {
-                  const pNow = performance.now();
-                  if (cuesList.length === 1 || (cuesList.length - lastProgressCount >= 20 && pNow - lastProgressTime > 60)) {
-                    lastProgressTime = pNow;
-                    lastProgressCount = cuesList.length;
-                    const partial = buildSubtitleCues(cuesList, targetTrackNumber);
-                    onProgress({
-                      cues: partial.cues,
-                      srtText: partial.srtText,
-                      language: 'und',
-                      trackName: `Track ${targetTrackNumber}`
-                    });
-                  }
+              // Progressive cue streaming trigger for instantaneous subtitle availability
+              if (onProgress) {
+                const pNow = performance.now();
+                if (cuesList.length === 1 || (cuesList.length - lastProgressCount >= 20 && pNow - lastProgressTime > 60)) {
+                  lastProgressTime = pNow;
+                  lastProgressCount = cuesList.length;
+                  const partial = buildSubtitleCues(cuesList, targetTrackNumber);
+                  onProgress({
+                    cues: partial.cues,
+                    srtText: partial.srtText,
+                    language: 'und',
+                    trackName: `Track ${targetTrackNumber}`
+                  });
                 }
               }
             }
@@ -1010,9 +1014,12 @@ export async function extractAllMediaTracks(file: File): Promise<MediaTracksDisc
         audioIdx++;
       } else if (t.type === 17 || t.type === 0x11) {
         const langName = formatLanguage(t.language);
+        const codecUpper = t.codecId.toUpperCase();
+        const isBitmap = codecUpper.includes('HDMV/PGS') || codecUpper.includes('VOBSUB') || codecUpper.includes('DVBSUB') || codecUpper.includes('S_HDMV') || codecUpper.includes('S_VOBSUB');
         const codecShort = t.codecId.replace('S_TEXT/', '').replace('S_', '');
         let label = t.name ? t.name : `Track ${subIdx}: ${langName}`;
         if (codecShort && !label.includes(codecShort)) label += ` [${codecShort}]`;
+        if (isBitmap && !label.includes('Bitmap')) label += ' (Bitmap/PGS - Unextractable)';
 
         subtitleTracks.push({
           id: `sub-mkv-${t.number}`,

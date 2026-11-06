@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.0 - HDMV/PGS Bitmap Subtitle Guard & Virtualized Subtitle Workspace
+
+### Fixed & Enhanced
+- **HDMV/PGS Bitmap Subtitle Guard**: Prevented player crashes when media files containing Blu-ray/DVD PGS or VobSub bitmap subtitle tracks (`S_HDMV/PGS`, `S_VOBSUB`) are opened. Identified bitmap tracks with an explicit `(Bitmap/PGS - Unextractable)` tag in track selection.
+- **Auto-Selection Prioritization**: Subtitle auto-loader now intelligently bypasses binary bitmap streams and auto-selects valid text tracks (SRT, ASS, VTT).
+- **Binary Data Sanitization**: Added binary stream inspection to the MKV packet decoder to discard any raw binary payload bytes from leaking into the subtitle cue parser.
+- **Virtualized Cue List Pagination**: Replaced full 1,500+ DOM element re-renders in the Subtitle Workspace with incremental windowing (100-item chunks with "Load More"), eliminating browser main-thread freezes and rendering crashes when opening the Subtitles tab.
+
 ## v1.1.9 - Matroska ASS/SSA Packet Header Stripping & Full SSA/ASS Support
 
 ### Fixed

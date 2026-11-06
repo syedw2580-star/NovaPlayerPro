@@ -144,10 +144,18 @@ export default function App() {
           setIsExtractingSubtitles(false);
           return;
         } else if (allSubs.length > 0) {
-          const enSub = allSubs.find(t => t.language?.toLowerCase().startsWith('en') || t.label?.toLowerCase().includes('english'));
-          const chosenSub = enSub || allSubs[0];
+          // Filter out binary bitmap subtitle tracks (like PGS / VobSub) which cannot be parsed as text
+          const isBitmapTrack = (t: MediaSubtitleTrack) => {
+            const codec = (t.codec || '').toUpperCase();
+            const label = (t.label || '').toUpperCase();
+            return codec.includes('HDMV') || codec.includes('PGS') || codec.includes('VOBSUB') || label.includes('PGS') || label.includes('VOBSUB');
+          };
+          const textSubs = allSubs.filter(t => !isBitmapTrack(t));
+          const preferredPool = textSubs.length > 0 ? textSubs : allSubs;
+          const enSub = preferredPool.find(t => t.language?.toLowerCase().startsWith('en') || t.label?.toLowerCase().includes('english'));
+          const chosenSub = enSub || preferredPool[0];
           setActiveSubtitleTrackId(chosenSub.id);
-          if (chosenSub.number !== undefined) {
+          if (chosenSub.number !== undefined && !isBitmapTrack(chosenSub)) {
             setIsExtractingSubtitles(true);
             const result = await extractEmbeddedSubtitleTrack(
               fileObj,
@@ -173,6 +181,8 @@ export default function App() {
             } else {
               setCues([]);
             }
+          } else {
+            setCues([]);
           }
           return;
         }
@@ -248,6 +258,13 @@ export default function App() {
 
     // 2. High-speed extraction for MKV or MP4 embedded track
     if (activeVideo?.file && selectedTrack.number !== undefined) {
+      const codec = (selectedTrack.codec || '').toUpperCase();
+      const label = (selectedTrack.label || '').toUpperCase();
+      if (codec.includes('HDMV') || codec.includes('PGS') || codec.includes('VOBSUB') || label.includes('PGS') || label.includes('VOBSUB')) {
+        setCues([]);
+        setIsExtractingSubtitles(false);
+        return;
+      }
       try {
         setIsExtractingSubtitles(true);
         const extracted = await extractEmbeddedSubtitleTrack(
